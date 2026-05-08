@@ -126,6 +126,7 @@ async fn process_message(
                 board: g.state.board.clone(),
                 current_player: g.state.current_player,
                 mode,
+                move_count: g.state.move_count,
             });
         }
 
@@ -168,6 +169,7 @@ async fn process_message(
                     board: g.state.board.clone(),
                     current_player: g.state.current_player,
                     message: format!("翻开了 ({}, {}) 的棋子", x, y),
+                    move_count: g.state.move_count,
                 });
 
                 if matches!(g.mode, GameMode::Pve) && g.state.current_player == Camp::Red {
@@ -215,6 +217,7 @@ async fn process_message(
                         board: g.state.board.clone(),
                         current_player: g.state.current_player,
                         message: String::new(),
+                        move_count: g.state.move_count,
                     });
 
                     if matches!(g.mode, GameMode::Pve) && g.state.current_player == Camp::Red {
@@ -240,11 +243,15 @@ fn process_ai_turn(g: &mut GameSession) -> Vec<ServerMessage> {
     if let Some(ai) = &g.ai_player {
         let action = ai.choose_action(&g.state.board);
         if let Some(action) = action {
-            let description = match action.action_type {
+            let (description, action_type, from_x, from_y, to_x, to_y) = match action.action_type {
                 crate::ai::heuristic::ActionType::Flip => {
                     let (x, y) = action.self_pos;
                     g.state.board.cells[x][y].revealed = true;
-                    format!("AI 翻开了 ({}, {}) 的棋子", x, y)
+                    (
+                        format!("AI 翻开了 ({}, {}) 的棋子", x, y),
+                        "flip".to_string(),
+                        x, y, None, None,
+                    )
                 }
                 crate::ai::heuristic::ActionType::Move => {
                     let tp = action.target_pos.unwrap();
@@ -253,11 +260,12 @@ fn process_ai_turn(g: &mut GameSession) -> Vec<ServerMessage> {
                         Some(tp),
                         g.state.current_player,
                     );
-                    if ok {
+                    let desc = if ok {
                         format!("AI 从 ({}, {}) 移动到 ({}, {})", action.self_pos.0, action.self_pos.1, tp.0, tp.1)
                     } else {
                         "AI 动作执行失败".to_string()
-                    }
+                    };
+                    (desc, "move".to_string(), action.self_pos.0, action.self_pos.1, Some(tp.0), Some(tp.1))
                 }
             };
 
@@ -265,7 +273,7 @@ fn process_ai_turn(g: &mut GameSession) -> Vec<ServerMessage> {
             g.state.move_count += 1;
             g.state.check_winner();
 
-            responses.push(ServerMessage::AiAction { description });
+            responses.push(ServerMessage::AiAction { description, action_type, from_x, from_y, to_x, to_y });
 
             if g.state.game_over {
                 responses.push(ServerMessage::GameOver {
@@ -277,17 +285,21 @@ fn process_ai_turn(g: &mut GameSession) -> Vec<ServerMessage> {
                     board: g.state.board.clone(),
                     current_player: g.state.current_player,
                     message: String::new(),
+                    move_count: g.state.move_count,
                 });
             }
         } else {
             g.state.toggle_player();
             responses.push(ServerMessage::AiAction {
                 description: "AI 无可执行动作，跳过回合".to_string(),
+                action_type: "skip".to_string(),
+                from_x: 0, from_y: 0, to_x: None, to_y: None,
             });
             responses.push(ServerMessage::BoardUpdate {
                 board: g.state.board.clone(),
                 current_player: g.state.current_player,
                 message: String::new(),
+                move_count: g.state.move_count,
             });
         }
     }

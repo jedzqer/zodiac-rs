@@ -12,15 +12,17 @@
 - [x] 6×4 棋盘数据结构，含猴占位机制
 - [x] 启发式 AI 对手（评估函数：子力、位置、翻子收益）
 - [x] Axum WebSocket 服务端（实时双向通信）
-- [x] 前后端 JSON 协议定义
+- [x] 前后端 JSON 协议定义（含 `move_count`、结构化 `AiAction` 坐标）
 - [x] HTML5 Canvas 前端（棋盘渲染、棋子显示、点击交互）
 - [x] 双人模式 (PVP) / 单人模式 (PVE)
 - [x] 13 项单元测试全部通过
+- [x] 翻子动画（Card-flip 效果，前半程显示背面，后半程显示正面）
+- [x] 移动/吃子/消失动画（基于棋盘 diff 驱动，支持 Pong/Dog/Sheep 等特殊规则）
+- [x] 选中棋子悬浮效果（`requestAnimationFrame` 循环，持续上浮 lift 偏移）
+- [x] AI 动作动画（服务端 `AiAction` 携带结构化坐标，前端同步触发）
 
 ### 待完成
 
-- [ ] 翻子/移动/消失动画（前端已定义框架，未接入服务端事件驱动）
-- [ ] 选中棋子悬浮效果的动画循环
 - [ ] 神经网络 AI（需导出 ONNX 模型，集成 `ort` crate）
 - [ ] 多房间/多人在线对战
 - [ ] 断线重连
@@ -109,8 +111,8 @@ zodiac-rs/
 | 网络 | 无 | WebSocket |
 | AI (基础) | ✅ 启发式 | ✅ 启发式 |
 | AI (神经网络) | ✅ PyTorch ZooFormer | ❌ 待集成 ONNX |
-| 动画 | ✅ Pygame 动画 | ⚠️ 框架已搭，待完善 |
-| 代码量 | ~1750 行 | ~1730 行 (Rust) + 609 行 (HTML/JS) |
+| 动画 | ✅ Pygame 动画 | ✅ 翻子/移动/消失/悬浮动画 |
+| 代码量 | ~1750 行 | ~1730 行 (Rust) + ~750 行 (HTML/JS) |
 
 ## 协议格式
 
@@ -127,6 +129,6 @@ zodiac-rs/
 {"type": "board_update", "data": {"board": {...}, "current_player": "red", "message": "..."}}
 {"type": "game_over", "data": {"winner": "red", "board": {...}}}
 {"type": "ai_thinking", "data": null}
-{"type": "ai_action", "data": {"description": "AI 翻开了 (2, 1) 的棋子"}}
+{"type": "ai_action", "data": {"description": "AI 翻开了 (2, 1) 的棋子", "action_type": "flip", "from_x": 2, "from_y": 1, "to_x": null, "to_y": null}}
 {"type": "error", "data": {"message": "Invalid move"}}
 ```

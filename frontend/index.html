@@ -185,8 +185,11 @@
         // Animation state
         let moveAnimation = null;
         let vanishAnimations = [];
+        let flipAnimations = [];
+        let pendingAction = null;
         const MOVE_DURATION = 320;
         const VANISH_DURATION = 420;
+        const FLIP_DURATION = 400;
 
         function loadImages() {
             return new Promise((resolve) => {
@@ -253,16 +256,62 @@
                     render();
                     break;
 
-                case 'board_update':
-                    gameState.board = msg.data.board;
+                case 'board_update': {
+                    const oldBoard = gameState.board;
+                    const newBoard = msg.data.board;
+
+                    if (pendingAction) {
+                        if (pendingAction.type === 'flip') {
+                            const { x, y } = pendingAction;
+                            flipAnimations.push({
+                                x, y,
+                                piece: newBoard.cells[x][y].piece,
+                                startTime: Date.now()
+                            });
+                        } else if (pendingAction.type === 'move') {
+                            const { from_x, from_y, to_x, to_y } = pendingAction;
+                            const oldSrc = oldBoard.cells[from_x][from_y];
+                            const oldDst = oldBoard.cells[to_x][to_y];
+                            const newSrc = newBoard.cells[from_x][from_y];
+                            const newDst = newBoard.cells[to_x][to_y];
+                            const srcNowEmpty = !newSrc.has_piece && !newSrc.monkey;
+                            const dstNowEmpty = !newDst.has_piece && !newDst.monkey;
+
+                            if (srcNowEmpty && dstNowEmpty) {
+                                // Pong: both pieces vanish
+                                vanishAnimations.push({ x: from_x, y: from_y, piece: oldSrc.piece, monkey: oldSrc.monkey, startTime: Date.now() });
+                                vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
+                            } else if (srcNowEmpty && !dstNowEmpty) {
+                                // Move or eat: src piece traveled to dst
+                                if (oldDst.has_piece || oldDst.monkey) {
+                                    vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
+                                }
+                                moveAnimation = {
+                                    startX: from_x, startY: from_y,
+                                    endX: to_x, endY: to_y,
+                                    piece: oldSrc.piece,
+                                    monkey: oldSrc.monkey,
+                                    startTime: Date.now()
+                                };
+                            } else if (!srcNowEmpty && dstNowEmpty) {
+                                // Dog push / sheep swap: target position cleared
+                                vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
+                            }
+                        }
+                        pendingAction = null;
+                    }
+
+                    gameState.board = newBoard;
                     gameState.current_player = msg.data.current_player;
+                    gameState.move_count = msg.data.move_count;
                     selectedPos = null;
                     if (msg.data.message) {
                         document.getElementById('info-message').textContent = msg.data.message;
                     }
                     updateInfoPanel();
-                    render();
+                    if (!moveAnimation && vanishAnimations.length === 0 && flipAnimations.length === 0) render();
                     break;
+                }
 
                 case 'game_over':
                     gameState.board = msg.data.board;
@@ -279,9 +328,15 @@
                 case 'ai_action':
                     document.getElementById('status-bar').textContent = '';
                     document.getElementById('info-message').textContent = msg.data.description;
+                    if (msg.data.action_type === 'flip') {
+                        pendingAction = { type: 'flip', x: msg.data.from_x, y: msg.data.from_y };
+                    } else if (msg.data.action_type === 'move') {
+                        pendingAction = { type: 'move', from_x: msg.data.from_x, from_y: msg.data.from_y, to_x: msg.data.to_x, to_y: msg.data.to_y };
+                    }
                     break;
 
                 case 'error':
+                    pendingAction = null;
                     console.warn('Server error:', msg.data.message);
                     break;
             }
@@ -358,12 +413,12 @@
             ctx.restore();
         }
 
-        function renderPiece(x, y, piece, revealed, monkey, alpha) {
+        function renderPiece(x, y, piece, revealed, monkey, alpha, yOffset = 0) {
             const [px, py] = gridToPixel(x, y);
             const pw = CELL_W - 10;
             const ph = CELL_H - 10;
             const ox = px + 5;
-            const oy = py + 5;
+            const oy = py + 5 + yOffset;
 
             ctx.save();
             if (alpha !== undefined) ctx.globalAlpha = alpha;
@@ -444,6 +499,7 @@
                         // Skip the piece being animated
                         if (moveAnimation && moveAnimation.endX === x && moveAnimation.endY === y) continue;
                         if (selectedPos && selectedPos[0] === x && selectedPos[1] === y && !moveAnimation) continue;
+                        if (flipAnimations.some(a => a.x === x && a.y === y)) continue;
                         renderPiece(x, y, cell.piece, cell.revealed, cell.monkey);
                     }
                 }
@@ -467,7 +523,7 @@
                     ctx.fill();
                     ctx.restore();
 
-                    renderPiece(sx, sy, cell.piece, cell.revealed, cell.monkey);
+                    renderPiece(sx, sy, cell.piece, cell.revealed, cell.monkey, undefined, lift);
                 }
             }
 
@@ -550,6 +606,56 @@
                 ctx.restore();
                 return progress < 1.0;
             });
+
+            // Draw flip animations (card flip: back → front)
+            flipAnimations = flipAnimations.filter(anim => {
+                const elapsed = Date.now() - anim.startTime;
+                const progress = Math.min(1.0, elapsed / FLIP_DURATION);
+
+                const [px, py] = gridToPixel(anim.x, anim.y);
+                const pw = CELL_W - 10;
+                const ph = CELL_H - 10;
+                const cx = px + 5 + pw / 2;
+                const cy = py + 5 + ph / 2;
+
+                let scaleX, showFront;
+                if (progress < 0.5) {
+                    scaleX = 1 - progress * 2;
+                    showFront = false;
+                } else {
+                    scaleX = (progress - 0.5) * 2;
+                    showFront = true;
+                }
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.scale(scaleX, 1);
+
+                if (showFront && anim.piece) {
+                    if (pieceImg && pieceImg.complete && pieceImg.naturalWidth > 0) {
+                        ctx.drawImage(pieceImg, -pw / 2, -ph / 2, pw, ph);
+                    } else {
+                        ctx.fillStyle = '#DEB887';
+                        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+                    }
+                    const color = anim.piece.camp === 'black' ? '#000' : '#f00';
+                    ctx.font = `32px "SimHei", "Microsoft YaHei", sans-serif`;
+                    ctx.fillStyle = color;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(anim.piece.name, 0, 0);
+                } else {
+                    if (pieceBackImg && pieceBackImg.complete && pieceBackImg.naturalWidth > 0) {
+                        ctx.drawImage(pieceBackImg, -pw / 2, -ph / 2, pw, ph);
+                    } else {
+                        ctx.fillStyle = '#4169E1';
+                        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+                    }
+                }
+
+                ctx.restore();
+                return progress < 1.0;
+            });
         }
 
         function animationLoop() {
@@ -559,7 +665,7 @@
 
         canvas.addEventListener('click', (e) => {
             if (!gameState || !ws || ws.readyState !== WebSocket.OPEN) return;
-            if (moveAnimation || vanishAnimations.length > 0) return;
+            if (moveAnimation || vanishAnimations.length > 0 || flipAnimations.length > 0) return;
 
             // In PVE mode, ignore clicks during AI turn
             if (gameMode === 'pve' && gameState.current_player === 'red') return;
@@ -574,16 +680,20 @@
                 // First click
                 if (cell.has_piece && !cell.revealed && !cell.monkey) {
                     // Flip a hidden piece
+                    pendingAction = { type: 'flip', x, y };
                     ws.send(JSON.stringify({ type: 'flip', data: { x, y } }));
-                } else if (cell.piece && cell.revealed && cell.piece.camp === gameState.current_player) {
-                    // Select own piece
+                } else if ((cell.piece && cell.revealed && cell.piece.camp === gameState.current_player) ||
+                           (cell.monkey && cell.monkey.camp === gameState.current_player)) {
+                    // Select own piece (including monkey-occupied pieces)
+                    const pieceName = cell.monkey ? cell.monkey.name : cell.piece.name;
                     selectedPos = [x, y];
-                    document.getElementById('info-message').textContent = `已选中 ${cell.piece.name}`;
+                    document.getElementById('info-message').textContent = `已选中 ${pieceName}`;
                     render();
                 }
             } else {
                 // Second click - attempt move
                 const [sx, sy] = selectedPos;
+                pendingAction = { type: 'move', from_x: sx, from_y: sy, to_x: x, to_y: y };
                 ws.send(JSON.stringify({ type: 'move', data: { from_x: sx, from_y: sy, to_x: x, to_y: y } }));
                 selectedPos = null;
             }

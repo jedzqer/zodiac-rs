@@ -27,11 +27,13 @@ pub enum ServerMessage {
         board: Board,
         current_player: Camp,
         mode: GameMode,
+        move_count: u32,
     },
     BoardUpdate {
         board: Board,
         current_player: Camp,
         message: String,
+        move_count: u32,
     },
     GameOver {
         winner: Camp,
@@ -43,5 +45,10 @@ pub enum ServerMessage {
     AiThinking,
     AiAction {
         description: String,
+        action_type: String,
+        from_x: usize,
+        from_y: usize,
+        to_x: Option<usize>,
+        to_y: Option<usize>,
     },
 }
