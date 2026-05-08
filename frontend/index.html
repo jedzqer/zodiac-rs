@@ -12,7 +12,7 @@
         }
 
         body {
-            background-color: #00bfff;
+            background-color: #1a0a00;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -40,7 +40,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: #00bfff;
+            background: linear-gradient(135deg, #1a0a00 0%, #3d1a00 50%, #1a0a00 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -49,26 +49,39 @@
         }
 
         #menu-overlay h1 {
-            font-size: 4rem;
-            color: #000;
-            margin-bottom: 3rem;
+            font-size: 4.5rem;
+            color: #f5c842;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 30px rgba(245,200,66,0.5), 2px 2px 0 #8B4500;
+            letter-spacing: 0.2em;
+        }
+
+        #menu-overlay .subtitle {
+            font-size: 1rem;
+            color: #c8906a;
+            margin-bottom: 3.5rem;
+            letter-spacing: 0.3em;
         }
 
         .menu-btn {
-            font-size: 1.8rem;
-            color: #000;
-            background: none;
-            border: 2px solid #000;
-            padding: 0.8rem 2.5rem;
-            margin: 0.5rem;
+            font-size: 1.6rem;
+            color: #f5c842;
+            background: rgba(139, 69, 0, 0.3);
+            border: 2px solid #c8906a;
+            padding: 0.9rem 3rem;
+            margin: 0.6rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.25s;
             font-family: inherit;
+            letter-spacing: 0.1em;
+            border-radius: 4px;
         }
 
         .menu-btn:hover {
-            background-color: #000;
-            color: #00bfff;
+            background: rgba(245, 200, 66, 0.15);
+            border-color: #f5c842;
+            box-shadow: 0 0 20px rgba(245,200,66,0.3);
+            transform: translateY(-2px);
         }
 
         #info-panel {
@@ -77,16 +90,23 @@
             right: 10px;
             width: 230px;
             padding: 15px;
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(20, 8, 0, 0.88);
+            border: 1px solid #8B5E30;
             border-radius: 8px;
             font-size: 14px;
-            line-height: 1.8;
+            line-height: 1.9;
             display: none;
             z-index: 5;
+            color: #e8d0a0;
         }
 
         #info-panel .label {
             font-weight: bold;
+            color: #f5c842;
+        }
+
+        #info-panel hr {
+            border-color: #5c3317;
         }
 
         #status-bar {
@@ -95,8 +115,9 @@
             left: 50%;
             transform: translateX(-50%);
             padding: 8px 20px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: #fff;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #f5c842;
+            border: 1px solid #8B5E30;
             border-radius: 20px;
             font-size: 14px;
             display: none;
@@ -109,7 +130,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.75);
             display: none;
             flex-direction: column;
             justify-content: center;
@@ -119,14 +140,15 @@
         }
 
         #winner-overlay h2 {
-            font-size: 3rem;
-            color: gold;
+            font-size: 3.5rem;
+            color: #f5c842;
             margin-bottom: 1rem;
+            text-shadow: 0 0 40px rgba(245,200,66,0.7);
         }
 
         #winner-overlay p {
             font-size: 1.2rem;
-            color: #fff;
+            color: #c8906a;
         }
     </style>
 </head>
@@ -136,8 +158,9 @@
 
         <div id="menu-overlay">
             <h1>十二生肖</h1>
-            <button class="menu-btn" onclick="startGame('pvp')">双人模式</button>
-            <button class="menu-btn" onclick="startGame('pve')">单人模式 对战 AI</button>
+            <div class="subtitle">暗棋对弈</div>
+            <button class="menu-btn" onclick="startGame('pvp')">双人对战</button>
+            <button class="menu-btn" onclick="startGame('pve')">单人 对战 AI</button>
         </div>
 
         <div id="info-panel">
@@ -176,11 +199,6 @@
         let gameState = null;
         let selectedPos = null;
         let gameMode = null;
-        let boardImg = null;
-        let pieceImg = null;
-        let pieceBackImg = null;
-        let monkeyPieceImg = null;
-        let fontLoaded = false;
 
         // Animation state
         let moveAnimation = null;
@@ -191,33 +209,232 @@
         const VANISH_DURATION = 420;
         const FLIP_DURATION = 400;
 
-        function loadImages() {
-            return new Promise((resolve) => {
-                let loaded = 0;
-                const total = 4;
-                const check = () => { if (++loaded >= total) resolve(); };
+        // ── Canvas drawing functions ────────────────────────────────────────
 
-                boardImg = new Image();
-                boardImg.onload = check;
-                boardImg.onerror = check;
-                boardImg.src = 'assets/qipan.png';
+        function drawBoardCanvas() {
+            // Background: warm linen gradient
+            const bg = ctx.createLinearGradient(0, 0, BOARD_W, BOARD_H);
+            bg.addColorStop(0,   '#f0dfa8');
+            bg.addColorStop(0.3, '#e8d090');
+            bg.addColorStop(0.7, '#dfc078');
+            bg.addColorStop(1,   '#cfa860');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, BOARD_W, BOARD_H);
 
-                pieceImg = new Image();
-                pieceImg.onload = check;
-                pieceImg.onerror = check;
-                pieceImg.src = 'assets/bao2.png';
+            // Subtle wood-grain stripes
+            ctx.save();
+            ctx.globalAlpha = 0.06;
+            for (let i = 0; i < BOARD_H; i += 7) {
+                ctx.fillStyle = (Math.floor(i / 7) % 2 === 0) ? '#6b3a10' : '#fff';
+                ctx.fillRect(0, i, BOARD_W, 3);
+            }
+            ctx.restore();
 
-                pieceBackImg = new Image();
-                pieceBackImg.onload = check;
-                pieceBackImg.onerror = check;
-                pieceBackImg.src = 'assets/bao1.png';
+            // Outer decorative frame
+            ctx.strokeStyle = '#4a2508';
+            ctx.lineWidth = 10;
+            ctx.strokeRect(5, 5, BOARD_W - 10, BOARD_H - 10);
 
-                monkeyPieceImg = new Image();
-                monkeyPieceImg.onload = check;
-                monkeyPieceImg.onerror = check;
-                monkeyPieceImg.src = 'assets/bao1-monkey.png';
-            });
+            // Inner frame line
+            ctx.strokeStyle = '#8b5e30';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(20, 20, BOARD_W - 40, BOARD_H - 40);
+
+            // Grid lines
+            ctx.strokeStyle = '#7a5228';
+            ctx.lineWidth = 1.5;
+            for (let x = 0; x <= BOARD_ROWS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * CELL_W, 0);
+                ctx.lineTo(x * CELL_W, BOARD_H);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= BOARD_COLS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * CELL_H);
+                ctx.lineTo(BOARD_W, y * CELL_H);
+                ctx.stroke();
+            }
+
+            // Intersection ornaments
+            for (let x = 0; x <= BOARD_ROWS; x++) {
+                for (let y = 0; y <= BOARD_COLS; y++) {
+                    const ix = x * CELL_W;
+                    const iy = y * CELL_H;
+                    ctx.beginPath();
+                    ctx.arc(ix, iy, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#4a2508';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(ix, iy, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = '#c8903c';
+                    ctx.fill();
+                }
+            }
+
+            // Faint cell center circles
+            ctx.save();
+            ctx.globalAlpha = 0.08;
+            ctx.strokeStyle = '#5c3317';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < BOARD_ROWS; x++) {
+                for (let y = 0; y < BOARD_COLS; y++) {
+                    ctx.beginPath();
+                    ctx.arc(x * CELL_W + CELL_W / 2, y * CELL_H + CELL_H / 2, CELL_W * 0.38, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
         }
+
+        function drawPieceDropShadow(cx, cy, r) {
+            ctx.save();
+            ctx.globalAlpha = (ctx.globalAlpha || 1) * 0.35;
+            ctx.beginPath();
+            ctx.arc(cx + 4, cy + 6, r, 0, Math.PI * 2);
+            ctx.fillStyle = '#000';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPieceBackCanvas(cx, cy, r) {
+            drawPieceDropShadow(cx, cy, r);
+
+            // Main circle – deep indigo
+            const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.05, cx, cy, r);
+            grad.addColorStop(0, '#5c6bc0');
+            grad.addColorStop(0.6, '#283593');
+            grad.addColorStop(1, '#1a237e');
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Edge highlight
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(120,140,220,0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Gold decorative ring
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Four small gold dots on the ring
+            const dotR = r * 0.82;
+            ctx.fillStyle = '#ffd700';
+            for (let i = 0; i < 4; i++) {
+                const angle = (i * Math.PI) / 2;
+                ctx.beginPath();
+                ctx.arc(cx + dotR * Math.cos(angle), cy + dotR * Math.sin(angle), 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Question mark
+            ctx.fillStyle = '#ffd700';
+            ctx.font = `bold ${Math.round(r * 0.75)}px "SimHei", "Microsoft YaHei", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('？', cx, cy + 2);
+        }
+
+        function drawPieceFrontCanvas(cx, cy, r, piece) {
+            const isRed = piece.camp === 'red';
+            drawPieceDropShadow(cx, cy, r);
+
+            // Main circle
+            const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.05, cx, cy, r);
+            if (isRed) {
+                grad.addColorStop(0, '#ef6c6c');
+                grad.addColorStop(0.55, '#c62828');
+                grad.addColorStop(1, '#7f0000');
+            } else {
+                grad.addColorStop(0, '#616161');
+                grad.addColorStop(0.55, '#1c1c1c');
+                grad.addColorStop(1, '#000000');
+            }
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Edge highlight
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = isRed ? 'rgba(255,160,160,0.45)' : 'rgba(180,180,180,0.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Decorative inner ring
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+            ctx.strokeStyle = isRed ? 'rgba(255,220,160,0.55)' : 'rgba(200,200,200,0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Character
+            ctx.fillStyle = isRed ? '#ffe082' : '#eeeeee';
+            ctx.font = `bold ${Math.round(r * 0.72)}px "SimHei", "Microsoft YaHei", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(piece.name, cx, cy + 2);
+        }
+
+        function drawMonkeyCanvas(cx, cy, r, monkey) {
+            const isRed = monkey.camp === 'red';
+            drawPieceDropShadow(cx, cy, r);
+
+            // Main circle – warm brown
+            const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.05, cx, cy, r);
+            grad.addColorStop(0, '#a1887f');
+            grad.addColorStop(0.6, '#6d4c41');
+            grad.addColorStop(1, '#3e2723');
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Edge
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(200,160,100,0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Dashed amber ring (monkey marker)
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.83, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ffb300';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([7, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            // Character
+            ctx.fillStyle = isRed ? '#ff8a65' : '#e0e0e0';
+            ctx.font = `bold ${Math.round(r * 0.72)}px "SimHei", "Microsoft YaHei", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(monkey.name, cx, cy + 2);
+        }
+
+        function drawPieceAt(cx, cy, r, piece, revealed, monkey) {
+            if (monkey) {
+                drawMonkeyCanvas(cx, cy, r, monkey);
+            } else if (revealed && piece) {
+                drawPieceFrontCanvas(cx, cy, r, piece);
+            } else {
+                drawPieceBackCanvas(cx, cy, r);
+            }
+        }
+
+        // ── WebSocket & game logic ──────────────────────────────────────────
 
         function connectWebSocket() {
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -278,11 +495,9 @@
                             const dstNowEmpty = !newDst.has_piece && !newDst.monkey;
 
                             if (srcNowEmpty && dstNowEmpty) {
-                                // Pong: both pieces vanish
                                 vanishAnimations.push({ x: from_x, y: from_y, piece: oldSrc.piece, monkey: oldSrc.monkey, startTime: Date.now() });
                                 vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
                             } else if (srcNowEmpty && !dstNowEmpty) {
-                                // Move or eat: src piece traveled to dst
                                 if (oldDst.has_piece || oldDst.monkey) {
                                     vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
                                 }
@@ -294,7 +509,6 @@
                                     startTime: Date.now()
                                 };
                             } else if (!srcNowEmpty && dstNowEmpty) {
-                                // Dog push / sheep swap: target position cleared
                                 vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
                             }
                         }
@@ -357,7 +571,7 @@
             document.getElementById('status-bar').style.display = 'none';
             gameState = null;
             selectedPos = null;
-            ctx.fillStyle = '#00bfff';
+            ctx.fillStyle = '#1a0a00';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
@@ -403,89 +617,27 @@
             return null;
         }
 
-        function drawPieceText(text, color, cx, cy, fontSize) {
-            ctx.save();
-            ctx.font = `${fontSize}px "SimHei", "Microsoft YaHei", sans-serif`;
-            ctx.fillStyle = color;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(text, cx, cy);
-            ctx.restore();
-        }
-
         function renderPiece(x, y, piece, revealed, monkey, alpha, yOffset = 0) {
             const [px, py] = gridToPixel(x, y);
             const pw = CELL_W - 10;
             const ph = CELL_H - 10;
-            const ox = px + 5;
-            const oy = py + 5 + yOffset;
+            const cx = px + 5 + pw / 2;
+            const cy = py + 5 + yOffset + ph / 2;
+            const r = Math.min(pw, ph) / 2 - 6;
 
             ctx.save();
             if (alpha !== undefined) ctx.globalAlpha = alpha;
-
-            if (monkey) {
-                if (monkeyPieceImg && monkeyPieceImg.complete && monkeyPieceImg.naturalWidth > 0) {
-                    ctx.drawImage(monkeyPieceImg, ox, oy, pw, ph);
-                } else {
-                    ctx.fillStyle = '#8B4513';
-                    ctx.fillRect(ox, oy, pw, ph);
-                }
-                const color = monkey.camp === 'black' ? '#000' : '#f00';
-                drawPieceText(monkey.name, color, ox + pw / 2, oy + ph / 2, 32);
-            } else if (revealed && piece) {
-                if (pieceImg && pieceImg.complete && pieceImg.naturalWidth > 0) {
-                    ctx.drawImage(pieceImg, ox, oy, pw, ph);
-                } else {
-                    ctx.fillStyle = '#DEB887';
-                    ctx.fillRect(ox, oy, pw, ph);
-                    ctx.strokeStyle = '#8B7355';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(ox, oy, pw, ph);
-                }
-                const color = piece.camp === 'black' ? '#000' : '#f00';
-                drawPieceText(piece.name, color, ox + pw / 2, oy + ph / 2, 32);
-            } else {
-                if (pieceBackImg && pieceBackImg.complete && pieceBackImg.naturalWidth > 0) {
-                    ctx.drawImage(pieceBackImg, ox, oy, pw, ph);
-                } else {
-                    ctx.fillStyle = '#4169E1';
-                    ctx.fillRect(ox, oy, pw, ph);
-                    ctx.strokeStyle = '#191970';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(ox, oy, pw, ph);
-                    ctx.fillStyle = '#fff';
-                    drawPieceText('?', '#fff', ox + pw / 2, oy + ph / 2, 32);
-                }
-            }
-
+            drawPieceAt(cx, cy, r, piece, revealed, monkey);
             ctx.restore();
         }
 
         function render() {
-            ctx.fillStyle = '#00bfff';
+            // Dark border area
+            ctx.fillStyle = '#1a0a00';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw board background
-            if (boardImg && boardImg.complete && boardImg.naturalWidth > 0) {
-                ctx.drawImage(boardImg, 0, 0, BOARD_W, BOARD_H);
-            } else {
-                ctx.fillStyle = '#DEB887';
-                ctx.fillRect(0, 0, BOARD_W, BOARD_H);
-                ctx.strokeStyle = '#8B7355';
-                ctx.lineWidth = 2;
-                for (let x = 0; x <= 6; x++) {
-                    ctx.beginPath();
-                    ctx.moveTo(x * CELL_W, 0);
-                    ctx.lineTo(x * CELL_W, BOARD_H);
-                    ctx.stroke();
-                }
-                for (let y = 0; y <= 4; y++) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, y * CELL_H);
-                    ctx.lineTo(BOARD_W, y * CELL_H);
-                    ctx.stroke();
-                }
-            }
+            // Draw board
+            drawBoardCanvas();
 
             if (!gameState || !gameState.board) return;
 
@@ -496,7 +648,6 @@
                 for (let y = 0; y < 4; y++) {
                     const cell = cells[x][y];
                     if (cell.has_piece || cell.monkey) {
-                        // Skip the piece being animated
                         if (moveAnimation && moveAnimation.endX === x && moveAnimation.endY === y) continue;
                         if (selectedPos && selectedPos[0] === x && selectedPos[1] === y && !moveAnimation) continue;
                         if (flipAnimations.some(a => a.x === x && a.y === y)) continue;
@@ -505,7 +656,7 @@
                 }
             }
 
-            // Draw selected piece hover effect
+            // Selected piece – lift + golden ring highlight
             if (selectedPos && !moveAnimation) {
                 const [sx, sy] = selectedPos;
                 const cell = cells[sx][sy];
@@ -513,21 +664,37 @@
                     const t = Date.now() / 120;
                     const lift = Math.sin(t) * 4 - 12;
                     const [px, py] = gridToPixel(sx, sy);
+                    const pw = CELL_W - 10;
+                    const ph = CELL_H - 10;
+                    const cx = px + 5 + pw / 2;
+                    const cy = py + 5 + lift + ph / 2;
+                    const r = Math.min(pw, ph) / 2 - 6;
 
-                    // Shadow
+                    // Drop shadow
                     ctx.save();
                     ctx.globalAlpha = 0.3;
                     ctx.fillStyle = '#000';
                     ctx.beginPath();
-                    ctx.ellipse(px + CELL_W / 2, py + CELL_H - 2, CELL_W / 3, 8, 0, 0, Math.PI * 2);
+                    ctx.ellipse(cx, py + CELL_H - 2, r * 0.7, 9, 0, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.restore();
+
+                    // Pulsing gold glow ring
+                    const pulse = (Math.sin(t * 1.8) + 1) / 2;
+                    ctx.save();
+                    ctx.globalAlpha = 0.5 + pulse * 0.4;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r + 8, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
                     ctx.restore();
 
                     renderPiece(sx, sy, cell.piece, cell.revealed, cell.monkey, undefined, lift);
                 }
             }
 
-            // Draw move animation
+            // Move animation
             if (moveAnimation) {
                 const elapsed = Date.now() - moveAnimation.startTime;
                 const progress = Math.min(1.0, elapsed / MOVE_DURATION);
@@ -535,79 +702,57 @@
 
                 const [sx, sy] = gridToPixel(moveAnimation.startX, moveAnimation.startY);
                 const [ex, ey] = gridToPixel(moveAnimation.endX, moveAnimation.endY);
-                const cx = sx + (ex - sx) * eased;
-                const arcOffset = -18 * Math.sin(progress * Math.PI);
-                const cy = sy + (ey - sy) * eased + arcOffset;
+                const animX = sx + (ex - sx) * eased;
+                const arcOffset = -22 * Math.sin(progress * Math.PI);
+                const animY = sy + (ey - sy) * eased + arcOffset;
 
-                // Shadow
+                const pw = CELL_W - 10;
+                const ph = CELL_H - 10;
+                const pcx = animX + 5 + pw / 2;
+                const pcy = animY + 5 + ph / 2;
+                const r = Math.min(pw, ph) / 2 - 6;
+
+                // Shadow beneath
                 ctx.save();
-                ctx.globalAlpha = 0.3;
+                ctx.globalAlpha = 0.28;
                 ctx.fillStyle = '#000';
                 ctx.beginPath();
-                ctx.ellipse(cx + CELL_W / 2, cy + CELL_H - 4, CELL_W / 3, 8, 0, 0, Math.PI * 2);
+                ctx.ellipse(pcx, animY + CELL_H - 2, r * 0.7, 9, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
 
-                // Piece at animated position
-                const pw = CELL_W - 10;
-                const ph = CELL_H - 10;
-                const ox = cx + 5;
-                const oy = cy + 5;
-                const piece = moveAnimation.piece;
-                const monkey = moveAnimation.monkey;
+                drawPieceAt(pcx, pcy, r, moveAnimation.piece, true, moveAnimation.monkey);
 
-                ctx.save();
-                if (monkey) {
-                    if (monkeyPieceImg && monkeyPieceImg.complete) {
-                        ctx.drawImage(monkeyPieceImg, ox, oy, pw, ph);
-                    }
-                    drawPieceText(monkey.name, monkey.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32);
-                } else if (piece) {
-                    if (pieceImg && pieceImg.complete) {
-                        ctx.drawImage(pieceImg, ox, oy, pw, ph);
-                    }
-                    drawPieceText(piece.name, piece.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32);
-                }
-                ctx.restore();
-
-                if (progress >= 1.0) {
-                    moveAnimation = null;
-                }
+                if (progress >= 1.0) moveAnimation = null;
             }
 
-            // Draw vanish animations
+            // Vanish animations
             vanishAnimations = vanishAnimations.filter(anim => {
                 const elapsed = Date.now() - anim.startTime;
                 const progress = Math.min(1.0, elapsed / VANISH_DURATION);
-                const scale = Math.max(0.1, 1.0 - progress * 0.9);
+                const scale = Math.max(0.05, 1.0 - progress * 0.95);
                 const alpha = Math.max(0, 1.0 - progress);
 
                 const [px, py] = gridToPixel(anim.x, anim.y);
-                const pw = (CELL_W - 10) * scale;
-                const ph = (CELL_H - 10) * scale;
-                const ox = px + (CELL_W - 10 - pw) / 2 + 5;
-                const oy = py + (CELL_H - 10 - ph) / 2 + 5 - progress * 34;
+                const baseW = CELL_W - 10;
+                const baseH = CELL_H - 10;
+                const pw = baseW * scale;
+                const ph = baseH * scale;
+                const ox = px + (baseW - pw) / 2 + 5;
+                const oy = py + (baseH - ph) / 2 + 5 - progress * 34;
+                const pcx = ox + pw / 2;
+                const pcy = oy + ph / 2;
+                const r = Math.max(4, Math.min(pw, ph) / 2 - 6 * scale);
 
                 ctx.save();
                 ctx.globalAlpha = alpha;
-
-                if (anim.monkey) {
-                    if (monkeyPieceImg && monkeyPieceImg.complete) {
-                        ctx.drawImage(monkeyPieceImg, ox, oy, pw, ph);
-                    }
-                    drawPieceText(anim.monkey.name, anim.monkey.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32 * scale);
-                } else if (anim.piece) {
-                    if (pieceImg && pieceImg.complete) {
-                        ctx.drawImage(pieceImg, ox, oy, pw, ph);
-                    }
-                    drawPieceText(anim.piece.name, anim.piece.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32 * scale);
-                }
-
+                drawPieceAt(pcx, pcy, r, anim.piece, true, anim.monkey);
                 ctx.restore();
+
                 return progress < 1.0;
             });
 
-            // Draw flip animations (card flip: back → front)
+            // Flip animations (card flip: back → front)
             flipAnimations = flipAnimations.filter(anim => {
                 const elapsed = Date.now() - anim.startTime;
                 const progress = Math.min(1.0, elapsed / FLIP_DURATION);
@@ -617,6 +762,7 @@
                 const ph = CELL_H - 10;
                 const cx = px + 5 + pw / 2;
                 const cy = py + 5 + ph / 2;
+                const r = Math.min(pw, ph) / 2 - 6;
 
                 let scaleX, showFront;
                 if (progress < 0.5) {
@@ -630,30 +776,13 @@
                 ctx.save();
                 ctx.translate(cx, cy);
                 ctx.scale(scaleX, 1);
-
                 if (showFront && anim.piece) {
-                    if (pieceImg && pieceImg.complete && pieceImg.naturalWidth > 0) {
-                        ctx.drawImage(pieceImg, -pw / 2, -ph / 2, pw, ph);
-                    } else {
-                        ctx.fillStyle = '#DEB887';
-                        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
-                    }
-                    const color = anim.piece.camp === 'black' ? '#000' : '#f00';
-                    ctx.font = `32px "SimHei", "Microsoft YaHei", sans-serif`;
-                    ctx.fillStyle = color;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(anim.piece.name, 0, 0);
+                    drawPieceFrontCanvas(0, 0, r, anim.piece);
                 } else {
-                    if (pieceBackImg && pieceBackImg.complete && pieceBackImg.naturalWidth > 0) {
-                        ctx.drawImage(pieceBackImg, -pw / 2, -ph / 2, pw, ph);
-                    } else {
-                        ctx.fillStyle = '#4169E1';
-                        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
-                    }
+                    drawPieceBackCanvas(0, 0, r);
                 }
-
                 ctx.restore();
+
                 return progress < 1.0;
             });
         }
@@ -667,7 +796,6 @@
             if (!gameState || !ws || ws.readyState !== WebSocket.OPEN) return;
             if (moveAnimation || vanishAnimations.length > 0 || flipAnimations.length > 0) return;
 
-            // In PVE mode, ignore clicks during AI turn
             if (gameMode === 'pve' && gameState.current_player === 'red') return;
 
             const pos = pixelToGrid(e.clientX, e.clientY);
@@ -677,21 +805,17 @@
             const cell = gameState.board.cells[x][y];
 
             if (!selectedPos) {
-                // First click
                 if (cell.has_piece && !cell.revealed && !cell.monkey) {
-                    // Flip a hidden piece
                     pendingAction = { type: 'flip', x, y };
                     ws.send(JSON.stringify({ type: 'flip', data: { x, y } }));
                 } else if ((cell.piece && cell.revealed && cell.piece.camp === gameState.current_player) ||
                            (cell.monkey && cell.monkey.camp === gameState.current_player)) {
-                    // Select own piece (including monkey-occupied pieces)
                     const pieceName = cell.monkey ? cell.monkey.name : cell.piece.name;
                     selectedPos = [x, y];
                     document.getElementById('info-message').textContent = `已选中 ${pieceName}`;
                     render();
                 }
             } else {
-                // Second click - attempt move
                 const [sx, sy] = selectedPos;
                 pendingAction = { type: 'move', from_x: sx, from_y: sy, to_x: x, to_y: y };
                 ws.send(JSON.stringify({ type: 'move', data: { from_x: sx, from_y: sy, to_x: x, to_y: y } }));
@@ -699,7 +823,6 @@
             }
         });
 
-        // Deselect on right-click
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             selectedPos = null;
@@ -707,8 +830,7 @@
             render();
         });
 
-        async function init() {
-            await loadImages();
+        function init() {
             connectWebSocket();
             animationLoop();
         }
