@@ -306,7 +306,14 @@ impl Board {
             return (true, Some(MoveResult::Move));
         }
 
-        if let Some(camp) = piece_camp {
+        if has_monkey {
+            let monkey_camp = self.cells[self_pos.0][self_pos.1].monkey.as_ref().map(|m| m.camp);
+            if let Some(camp) = monkey_camp {
+                if gamer_camp != camp {
+                    return (true, None);
+                }
+            }
+        } else if let Some(camp) = piece_camp {
             if gamer_camp != camp {
                 return (true, None);
             }

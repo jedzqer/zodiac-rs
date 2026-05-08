@@ -86,7 +86,7 @@
         #info-panel {
             position: absolute;
             top: 10px;
-            right: 10px;
+            left: 84.5%;
             width: 230px;
             padding: 15px;
             background-color: rgba(20, 8, 0, 0.88);
@@ -169,6 +169,11 @@
             <div><span class="label">红方棋子：</span><span id="info-red">12</span></div>
             <div><span class="label">黑方棋子：</span><span id="info-black">12</span></div>
             <hr style="margin: 8px 0;">
+            <div id="info-skill-section" style="display:none">
+                <div><span class="label">技能：</span></div>
+                <div id="info-skill" style="color:#b8d0a0; font-size:12px; line-height:1.6; margin-top:2px;"></div>
+                <hr style="margin: 8px 0;">
+            </div>
             <div id="info-message">请点击一个棋子</div>
         </div>
 
@@ -187,6 +192,21 @@
         const CELL_H = 225;
         const BOARD_W = CELL_W * BOARD_ROWS;
         const BOARD_H = CELL_H * BOARD_COLS;
+
+        const PIECE_SKILLS = {
+            '鼠': '可吃除猪(12)外的所有敌方棋子，遇鼠同归于尽',
+            '牛': '可撞翻中间未翻开棋子，跨两格直线移到空位',
+            '虎': '可隔1格直线攻击敌方，中间须有棋子',
+            '兔': '可直线跳跃1至2格，中间是否有棋子不影响',
+            '龙': '可飞到棋盘任意位置',
+            '蛇': '可走八方向（含对角线方向）',
+            '马': '可直线走2格，但中间须无棋子阻挡',
+            '羊': '将2格内等级更低的敌方棋子拉至自身位置，羊自身消失',
+            '猴': '可爬上未翻开棋子占位；猴离开前该棋子无法被翻开',
+            '鸡': '原地不动时翻开周围3×3范围内所有棋子',
+            '狗': '将相邻更强的敌方棋子吓退一格（推离自己方向）',
+            '猪': '只可吃鼠(1)，遇猪同归于尽',
+        };
 
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
@@ -552,7 +572,8 @@
                                 vanishAnimations.push({ x: from_x, y: from_y, piece: oldSrc.piece, monkey: oldSrc.monkey, startTime: Date.now() });
                                 vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
                             } else if (srcNowEmpty && !dstNowEmpty) {
-                                if (oldDst.has_piece || oldDst.monkey) {
+                                const monkeyClimbed = newDst.monkey && newDst.has_piece;
+                                if (!monkeyClimbed && (oldDst.has_piece || oldDst.monkey)) {
                                     vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
                                 }
                                 moveAnimation = {
@@ -867,6 +888,9 @@
                     const pieceName = cell.monkey ? cell.monkey.name : cell.piece.name;
                     selectedPos = [x, y];
                     document.getElementById('info-message').textContent = `已选中 ${pieceName}`;
+                    const skill = PIECE_SKILLS[pieceName] || '';
+                    document.getElementById('info-skill').textContent = skill;
+                    document.getElementById('info-skill-section').style.display = skill ? '' : 'none';
                     render();
                 }
             } else {
@@ -881,6 +905,7 @@
             e.preventDefault();
             selectedPos = null;
             document.getElementById('info-message').textContent = '请点击一个棋子';
+            document.getElementById('info-skill-section').style.display = 'none';
             render();
         });
 

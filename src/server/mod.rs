@@ -104,7 +104,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         }
 
         if !delayed.is_empty() {
-            tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(750)).await;
             for msg in delayed {
                 let text = serde_json::to_string(&msg).unwrap();
                 if sender.send(Message::Text(text.into())).await.is_err() {

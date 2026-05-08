@@ -20,6 +20,9 @@
 - [x] 移动/吃子/消失动画（基于棋盘 diff 驱动，支持 Pong/Dog/Sheep 等特殊规则）
 - [x] 选中棋子悬浮效果（`requestAnimationFrame` 循环，持续上浮 lift 偏移）
 - [x] AI 动作动画（服务端 `AiAction` 携带结构化坐标，前端同步触发）
+- [x] 猴占位机制修复（猴离开未翻开棋子后可正常移动；爬上时不再触发消失动画）
+- [x] 选中棋子时面板显示该棋子技能说明
+- [x] 信息面板右移至棋盘外侧，不再遮挡棋盘
 
 ### 待完成
 
@@ -67,13 +70,7 @@ zodiac-rs/
 │   │   └── mod.rs              # Axum WebSocket handler + 游戏会话管理
 │   └── protocol.rs             # ClientMessage / ServerMessage 定义
 ├── frontend/
-│   ├── index.html              # 单页应用（Canvas 渲染 + WebSocket 通信）
-│   └── assets/
-│       ├── qipan.png           # 棋盘图片
-│       ├── bao1.png            # 棋子背面
-│       ├── bao2.png            # 棋子正面
-│       ├── bao1-monkey.png     # 猴占位棋子
-│       └── font.ttf            # 中文字体
+│   └── index.html              # 单页应用（Canvas 渲染 + WebSocket 通信，无外部资源依赖）
 └── Python-old/                 # 原 Python 版本（参考用）
 ```
 
@@ -112,7 +109,9 @@ zodiac-rs/
 | AI (基础) | ✅ 启发式 | ✅ 启发式 |
 | AI (神经网络) | ✅ PyTorch ZooFormer | ❌ 待集成 ONNX |
 | 动画 | ✅ Pygame 动画 | ✅ 翻子/移动/消失/悬浮动画 |
-| 代码量 | ~1750 行 | ~1730 行 (Rust) + ~750 行 (HTML/JS) |
+| AI 延迟 | — | 750ms（拟人感） |
+| 棋子技能说明 | — | ✅ 选中棋子后面板显示 |
+| 代码量 | ~1750 行 | ~1730 行 (Rust) + ~800 行 (HTML/JS) |
 
 ## 协议格式
 
