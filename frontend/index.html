@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>十二生肖</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #00bfff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: "Microsoft YaHei", "SimHei", sans-serif;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            max-width: 1600px;
+            aspect-ratio: 16 / 9;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #00bfff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #menu-overlay h1 {
+            font-size: 4rem;
+            color: #000;
+            margin-bottom: 3rem;
+        }
+
+        .menu-btn {
+            font-size: 1.8rem;
+            color: #000;
+            background: none;
+            border: 2px solid #000;
+            padding: 0.8rem 2.5rem;
+            margin: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .menu-btn:hover {
+            background-color: #000;
+            color: #00bfff;
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 230px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.8;
+            display: none;
+            z-index: 5;
+        }
+
+        #info-panel .label {
+            font-weight: bold;
+        }
+
+        #status-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+            z-index: 5;
+        }
+
+        #winner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            cursor: pointer;
+        }
+
+        #winner-overlay h2 {
+            font-size: 3rem;
+            color: gold;
+            margin-bottom: 1rem;
+        }
+
+        #winner-overlay p {
+            font-size: 1.2rem;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <div id="menu-overlay">
+            <h1>十二生肖</h1>
+            <button class="menu-btn" onclick="startGame('pvp')">双人模式</button>
+            <button class="menu-btn" onclick="startGame('pve')">单人模式 对战 AI</button>
+        </div>
+
+        <div id="info-panel">
+            <div><span class="label">当前回合：</span><span id="info-player">-</span></div>
+            <div><span class="label">模式：</span><span id="info-mode">-</span></div>
+            <div><span class="label">回合数：</span><span id="info-moves">0</span></div>
+            <div><span class="label">红方棋子：</span><span id="info-red">12</span></div>
+            <div><span class="label">黑方棋子：</span><span id="info-black">12</span></div>
+            <hr style="margin: 8px 0;">
+            <div id="info-message">请点击一个棋子</div>
+        </div>
+
+        <div id="status-bar"></div>
+
+        <div id="winner-overlay" onclick="backToMenu()">
+            <h2 id="winner-text"></h2>
+            <p>点击任意处返回菜单</p>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_ROWS = 6;
+        const BOARD_COLS = 4;
+        const CELL_W = 225;
+        const CELL_H = 225;
+        const BOARD_W = CELL_W * BOARD_ROWS;
+        const BOARD_H = CELL_H * BOARD_COLS;
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 1600;
+        canvas.height = 900;
+
+        let ws = null;
+        let gameState = null;
+        let selectedPos = null;
+        let gameMode = null;
+        let boardImg = null;
+        let pieceImg = null;
+        let pieceBackImg = null;
+        let monkeyPieceImg = null;
+        let fontLoaded = false;
+
+        // Animation state
+        let moveAnimation = null;
+        let vanishAnimations = [];
+        const MOVE_DURATION = 320;
+        const VANISH_DURATION = 420;
+
+        function loadImages() {
+            return new Promise((resolve) => {
+                let loaded = 0;
+                const total = 4;
+                const check = () => { if (++loaded >= total) resolve(); };
+
+                boardImg = new Image();
+                boardImg.onload = check;
+                boardImg.onerror = check;
+                boardImg.src = 'assets/qipan.png';
+
+                pieceImg = new Image();
+                pieceImg.onload = check;
+                pieceImg.onerror = check;
+                pieceImg.src = 'assets/bao2.png';
+
+                pieceBackImg = new Image();
+                pieceBackImg.onload = check;
+                pieceBackImg.onerror = check;
+                pieceBackImg.src = 'assets/bao1.png';
+
+                monkeyPieceImg = new Image();
+                monkeyPieceImg.onload = check;
+                monkeyPieceImg.onerror = check;
+                monkeyPieceImg.src = 'assets/bao1-monkey.png';
+            });
+        }
+
+        function connectWebSocket() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('Connected to server');
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleMessage(msg);
+            };
+
+            ws.onclose = () => {
+                console.log('Disconnected from server');
+                setTimeout(connectWebSocket, 2000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'game_started':
+                    gameState = msg.data;
+                    gameMode = msg.data.mode;
+                    selectedPos = null;
+                    document.getElementById('menu-overlay').style.display = 'none';
+                    document.getElementById('info-panel').style.display = 'block';
+                    document.getElementById('status-bar').style.display = 'block';
+                    document.getElementById('winner-overlay').style.display = 'none';
+                    updateInfoPanel();
+                    render();
+                    break;
+
+                case 'board_update':
+                    gameState.board = msg.data.board;
+                    gameState.current_player = msg.data.current_player;
+                    selectedPos = null;
+                    if (msg.data.message) {
+                        document.getElementById('info-message').textContent = msg.data.message;
+                    }
+                    updateInfoPanel();
+                    render();
+                    break;
+
+                case 'game_over':
+                    gameState.board = msg.data.board;
+                    const winner = msg.data.winner === 'red' ? '红方' : '黑方';
+                    document.getElementById('winner-text').textContent = `${winner}获胜！`;
+                    document.getElementById('winner-overlay').style.display = 'flex';
+                    render();
+                    break;
+
+                case 'ai_thinking':
+                    document.getElementById('status-bar').textContent = 'AI 思考中...';
+                    break;
+
+                case 'ai_action':
+                    document.getElementById('status-bar').textContent = '';
+                    document.getElementById('info-message').textContent = msg.data.description;
+                    break;
+
+                case 'error':
+                    console.warn('Server error:', msg.data.message);
+                    break;
+            }
+        }
+
+        function startGame(mode) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('未连接到服务器，请稍候...');
+                return;
+            }
+            ws.send(JSON.stringify({ type: 'new_game', data: { mode } }));
+        }
+
+        function backToMenu() {
+            document.getElementById('winner-overlay').style.display = 'none';
+            document.getElementById('menu-overlay').style.display = 'flex';
+            document.getElementById('info-panel').style.display = 'none';
+            document.getElementById('status-bar').style.display = 'none';
+            gameState = null;
+            selectedPos = null;
+            ctx.fillStyle = '#00bfff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function updateInfoPanel() {
+            if (!gameState) return;
+            const player = gameState.current_player === 'red' ? '红方' : '黑方';
+            const mode = gameMode === 'pve' ? '单人（你=黑方, AI=红方）' : '双人对战';
+            document.getElementById('info-player').textContent = player;
+            document.getElementById('info-mode').textContent = mode;
+            document.getElementById('info-moves').textContent = gameState.move_count || 0;
+
+            let redCount = 0, blackCount = 0;
+            if (gameState.board && gameState.board.cells) {
+                for (let x = 0; x < 6; x++) {
+                    for (let y = 0; y < 4; y++) {
+                        const cell = gameState.board.cells[x][y];
+                        if (cell.piece) {
+                            if (cell.piece.camp === 'red') redCount++;
+                            else blackCount++;
+                        }
+                        if (cell.monkey) {
+                            if (cell.monkey.camp === 'red') redCount++;
+                            else blackCount++;
+                        }
+                    }
+                }
+            }
+            document.getElementById('info-red').textContent = redCount;
+            document.getElementById('info-black').textContent = blackCount;
+        }
+
+        function gridToPixel(x, y) {
+            return [x * CELL_W, y * CELL_H];
+        }
+
+        function pixelToGrid(px, py) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = Math.floor((px - rect.left) * scaleX / CELL_W);
+            const y = Math.floor((py - rect.top) * scaleY / CELL_H);
+            if (x >= 0 && x < 6 && y >= 0 && y < 4) return [x, y];
+            return null;
+        }
+
+        function drawPieceText(text, color, cx, cy, fontSize) {
+            ctx.save();
+            ctx.font = `${fontSize}px "SimHei", "Microsoft YaHei", sans-serif`;
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, cx, cy);
+            ctx.restore();
+        }
+
+        function renderPiece(x, y, piece, revealed, monkey, alpha) {
+            const [px, py] = gridToPixel(x, y);
+            const pw = CELL_W - 10;
+            const ph = CELL_H - 10;
+            const ox = px + 5;
+            const oy = py + 5;
+
+            ctx.save();
+            if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+            if (monkey) {
+                if (monkeyPieceImg && monkeyPieceImg.complete && monkeyPieceImg.naturalWidth > 0) {
+                    ctx.drawImage(monkeyPieceImg, ox, oy, pw, ph);
+                } else {
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(ox, oy, pw, ph);
+                }
+                const color = monkey.camp === 'black' ? '#000' : '#f00';
+                drawPieceText(monkey.name, color, ox + pw / 2, oy + ph / 2, 32);
+            } else if (revealed && piece) {
+                if (pieceImg && pieceImg.complete && pieceImg.naturalWidth > 0) {
+                    ctx.drawImage(pieceImg, ox, oy, pw, ph);
+                } else {
+                    ctx.fillStyle = '#DEB887';
+                    ctx.fillRect(ox, oy, pw, ph);
+                    ctx.strokeStyle = '#8B7355';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(ox, oy, pw, ph);
+                }
+                const color = piece.camp === 'black' ? '#000' : '#f00';
+                drawPieceText(piece.name, color, ox + pw / 2, oy + ph / 2, 32);
+            } else {
+                if (pieceBackImg && pieceBackImg.complete && pieceBackImg.naturalWidth > 0) {
+                    ctx.drawImage(pieceBackImg, ox, oy, pw, ph);
+                } else {
+                    ctx.fillStyle = '#4169E1';
+                    ctx.fillRect(ox, oy, pw, ph);
+                    ctx.strokeStyle = '#191970';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(ox, oy, pw, ph);
+                    ctx.fillStyle = '#fff';
+                    drawPieceText('?', '#fff', ox + pw / 2, oy + ph / 2, 32);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function render() {
+            ctx.fillStyle = '#00bfff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw board background
+            if (boardImg && boardImg.complete && boardImg.naturalWidth > 0) {
+                ctx.drawImage(boardImg, 0, 0, BOARD_W, BOARD_H);
+            } else {
+                ctx.fillStyle = '#DEB887';
+                ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+                ctx.strokeStyle = '#8B7355';
+                ctx.lineWidth = 2;
+                for (let x = 0; x <= 6; x++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x * CELL_W, 0);
+                    ctx.lineTo(x * CELL_W, BOARD_H);
+                    ctx.stroke();
+                }
+                for (let y = 0; y <= 4; y++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y * CELL_H);
+                    ctx.lineTo(BOARD_W, y * CELL_H);
+                    ctx.stroke();
+                }
+            }
+
+            if (!gameState || !gameState.board) return;
+
+            const cells = gameState.board.cells;
+
+            // Draw pieces
+            for (let x = 0; x < 6; x++) {
+                for (let y = 0; y < 4; y++) {
+                    const cell = cells[x][y];
+                    if (cell.has_piece || cell.monkey) {
+                        // Skip the piece being animated
+                        if (moveAnimation && moveAnimation.endX === x && moveAnimation.endY === y) continue;
+                        if (selectedPos && selectedPos[0] === x && selectedPos[1] === y && !moveAnimation) continue;
+                        renderPiece(x, y, cell.piece, cell.revealed, cell.monkey);
+                    }
+                }
+            }
+
+            // Draw selected piece hover effect
+            if (selectedPos && !moveAnimation) {
+                const [sx, sy] = selectedPos;
+                const cell = cells[sx][sy];
+                if (cell.has_piece || cell.monkey) {
+                    const t = Date.now() / 120;
+                    const lift = Math.sin(t) * 4 - 12;
+                    const [px, py] = gridToPixel(sx, sy);
+
+                    // Shadow
+                    ctx.save();
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.ellipse(px + CELL_W / 2, py + CELL_H - 2, CELL_W / 3, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    renderPiece(sx, sy, cell.piece, cell.revealed, cell.monkey);
+                }
+            }
+
+            // Draw move animation
+            if (moveAnimation) {
+                const elapsed = Date.now() - moveAnimation.startTime;
+                const progress = Math.min(1.0, elapsed / MOVE_DURATION);
+                const eased = 1.0 - (1.0 - progress) * (1.0 - progress);
+
+                const [sx, sy] = gridToPixel(moveAnimation.startX, moveAnimation.startY);
+                const [ex, ey] = gridToPixel(moveAnimation.endX, moveAnimation.endY);
+                const cx = sx + (ex - sx) * eased;
+                const arcOffset = -18 * Math.sin(progress * Math.PI);
+                const cy = sy + (ey - sy) * eased + arcOffset;
+
+                // Shadow
+                ctx.save();
+                ctx.globalAlpha = 0.3;
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.ellipse(cx + CELL_W / 2, cy + CELL_H - 4, CELL_W / 3, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Piece at animated position
+                const pw = CELL_W - 10;
+                const ph = CELL_H - 10;
+                const ox = cx + 5;
+                const oy = cy + 5;
+                const piece = moveAnimation.piece;
+                const monkey = moveAnimation.monkey;
+
+                ctx.save();
+                if (monkey) {
+                    if (monkeyPieceImg && monkeyPieceImg.complete) {
+                        ctx.drawImage(monkeyPieceImg, ox, oy, pw, ph);
+                    }
+                    drawPieceText(monkey.name, monkey.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32);
+                } else if (piece) {
+                    if (pieceImg && pieceImg.complete) {
+                        ctx.drawImage(pieceImg, ox, oy, pw, ph);
+                    }
+                    drawPieceText(piece.name, piece.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32);
+                }
+                ctx.restore();
+
+                if (progress >= 1.0) {
+                    moveAnimation = null;
+                }
+            }
+
+            // Draw vanish animations
+            vanishAnimations = vanishAnimations.filter(anim => {
+                const elapsed = Date.now() - anim.startTime;
+                const progress = Math.min(1.0, elapsed / VANISH_DURATION);
+                const scale = Math.max(0.1, 1.0 - progress * 0.9);
+                const alpha = Math.max(0, 1.0 - progress);
+
+                const [px, py] = gridToPixel(anim.x, anim.y);
+                const pw = (CELL_W - 10) * scale;
+                const ph = (CELL_H - 10) * scale;
+                const ox = px + (CELL_W - 10 - pw) / 2 + 5;
+                const oy = py + (CELL_H - 10 - ph) / 2 + 5 - progress * 34;
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+
+                if (anim.monkey) {
+                    if (monkeyPieceImg && monkeyPieceImg.complete) {
+                        ctx.drawImage(monkeyPieceImg, ox, oy, pw, ph);
+                    }
+                    drawPieceText(anim.monkey.name, anim.monkey.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32 * scale);
+                } else if (anim.piece) {
+                    if (pieceImg && pieceImg.complete) {
+                        ctx.drawImage(pieceImg, ox, oy, pw, ph);
+                    }
+                    drawPieceText(anim.piece.name, anim.piece.camp === 'black' ? '#000' : '#f00', ox + pw / 2, oy + ph / 2, 32 * scale);
+                }
+
+                ctx.restore();
+                return progress < 1.0;
+            });
+        }
+
+        function animationLoop() {
+            if (gameState) render();
+            requestAnimationFrame(animationLoop);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameState || !ws || ws.readyState !== WebSocket.OPEN) return;
+            if (moveAnimation || vanishAnimations.length > 0) return;
+
+            // In PVE mode, ignore clicks during AI turn
+            if (gameMode === 'pve' && gameState.current_player === 'red') return;
+
+            const pos = pixelToGrid(e.clientX, e.clientY);
+            if (!pos) return;
+
+            const [x, y] = pos;
+            const cell = gameState.board.cells[x][y];
+
+            if (!selectedPos) {
+                // First click
+                if (cell.has_piece && !cell.revealed && !cell.monkey) {
+                    // Flip a hidden piece
+                    ws.send(JSON.stringify({ type: 'flip', data: { x, y } }));
+                } else if (cell.piece && cell.revealed && cell.piece.camp === gameState.current_player) {
+                    // Select own piece
+                    selectedPos = [x, y];
+                    document.getElementById('info-message').textContent = `已选中 ${cell.piece.name}`;
+                    render();
+                }
+            } else {
+                // Second click - attempt move
+                const [sx, sy] = selectedPos;
+                ws.send(JSON.stringify({ type: 'move', data: { from_x: sx, from_y: sy, to_x: x, to_y: y } }));
+                selectedPos = null;
+            }
+        });
+
+        // Deselect on right-click
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            selectedPos = null;
+            document.getElementById('info-message').textContent = '请点击一个棋子';
+            render();
+        });
+
+        async function init() {
+            await loadImages();
+            connectWebSocket();
+            animationLoop();
+        }
+
+        init();
+    </script>
+</body>
+</html>
