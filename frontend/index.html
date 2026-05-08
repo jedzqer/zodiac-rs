@@ -23,8 +23,7 @@
 
         #game-container {
             position: relative;
-            width: 100vw;
-            max-width: 1600px;
+            width: min(100vw, calc(100vh * 16 / 9), 1600px);
             aspect-ratio: 16 / 9;
         }
 
@@ -287,141 +286,196 @@
             ctx.restore();
         }
 
-        function drawPieceDropShadow(cx, cy, r) {
+        function _drawSoftShadow(cx, cy, r) {
             ctx.save();
-            ctx.globalAlpha = (ctx.globalAlpha || 1) * 0.35;
+            ctx.filter = 'blur(6px)';
+            ctx.globalAlpha *= 0.40;
             ctx.beginPath();
-            ctx.arc(cx + 4, cy + 6, r, 0, Math.PI * 2);
+            ctx.arc(cx + 4, cy + 6, r * 0.95, 0, Math.PI * 2);
             ctx.fillStyle = '#000';
             ctx.fill();
             ctx.restore();
         }
 
+        function _drawSpecular(cx, cy, r) {
+            const hl = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.38, 0, cx - r * 0.38, cy - r * 0.38, r * 0.65);
+            hl.addColorStop(0, 'rgba(255,255,255,0.30)');
+            hl.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = hl;
+            ctx.fill();
+        }
+
         function drawPieceBackCanvas(cx, cy, r) {
-            drawPieceDropShadow(cx, cy, r);
+            _drawSoftShadow(cx, cy, r);
 
-            // Main circle – deep indigo
-            const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.05, cx, cy, r);
-            grad.addColorStop(0, '#5c6bc0');
-            grad.addColorStop(0.6, '#283593');
-            grad.addColorStop(1, '#1a237e');
+            // Dark jade green body
+            const grad = ctx.createRadialGradient(cx - r * 0.30, cy - r * 0.30, r * 0.05, cx + r * 0.20, cy + r * 0.25, r * 1.05);
+            grad.addColorStop(0, '#4a7c60');
+            grad.addColorStop(0.52, '#1e4d35');
+            grad.addColorStop(1, '#0b1f15');
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.fillStyle = grad;
             ctx.fill();
 
-            // Edge highlight
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(120,140,220,0.4)';
+            ctx.strokeStyle = '#060e0a';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Gold decorative ring
+            // Outer gold ring
             ctx.beginPath();
-            ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
-            ctx.strokeStyle = '#ffd700';
-            ctx.lineWidth = 2;
+            ctx.arc(cx, cy, r * 0.84, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(215,170,55,0.75)';
+            ctx.lineWidth = 1.8;
             ctx.stroke();
 
-            // Four small gold dots on the ring
-            const dotR = r * 0.82;
-            ctx.fillStyle = '#ffd700';
-            for (let i = 0; i < 4; i++) {
-                const angle = (i * Math.PI) / 2;
-                ctx.beginPath();
-                ctx.arc(cx + dotR * Math.cos(angle), cy + dotR * Math.sin(angle), 3.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Question mark
-            ctx.fillStyle = '#ffd700';
-            ctx.font = `bold ${Math.round(r * 0.75)}px "SimHei", "Microsoft YaHei", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('？', cx, cy + 2);
-        }
-
-        function drawPieceFrontCanvas(cx, cy, r, piece) {
-            const isRed = piece.camp === 'red';
-            drawPieceDropShadow(cx, cy, r);
-
-            // Main circle
-            const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.05, cx, cy, r);
-            if (isRed) {
-                grad.addColorStop(0, '#ef6c6c');
-                grad.addColorStop(0.55, '#c62828');
-                grad.addColorStop(1, '#7f0000');
-            } else {
-                grad.addColorStop(0, '#616161');
-                grad.addColorStop(0.55, '#1c1c1c');
-                grad.addColorStop(1, '#000000');
-            }
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            // Edge highlight
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = isRed ? 'rgba(255,160,160,0.45)' : 'rgba(180,180,180,0.3)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Decorative inner ring
-            ctx.beginPath();
-            ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
-            ctx.strokeStyle = isRed ? 'rgba(255,220,160,0.55)' : 'rgba(200,200,200,0.4)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Character
-            ctx.fillStyle = isRed ? '#ffe082' : '#eeeeee';
-            ctx.font = `bold ${Math.round(r * 0.72)}px "SimHei", "Microsoft YaHei", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(piece.name, cx, cy + 2);
-        }
-
-        function drawMonkeyCanvas(cx, cy, r, monkey) {
-            const isRed = monkey.camp === 'red';
-            drawPieceDropShadow(cx, cy, r);
-
-            // Main circle – warm brown
-            const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.05, cx, cy, r);
-            grad.addColorStop(0, '#a1887f');
-            grad.addColorStop(0.6, '#6d4c41');
-            grad.addColorStop(1, '#3e2723');
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            // Edge
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(200,160,100,0.4)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Dashed amber ring (monkey marker)
+            // Inner dashed ring
             ctx.save();
             ctx.beginPath();
-            ctx.arc(cx, cy, r * 0.83, 0, Math.PI * 2);
-            ctx.strokeStyle = '#ffb300';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([7, 6]);
+            ctx.arc(cx, cy, r * 0.65, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(175,140,45,0.50)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
 
-            // Character
-            ctx.fillStyle = isRed ? '#ff8a65' : '#e0e0e0';
+            // Four dots on outer ring
+            const dr = r * 0.84;
+            ctx.fillStyle = 'rgba(230,185,60,0.90)';
+            [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2].forEach(a => {
+                ctx.beginPath();
+                ctx.arc(cx + dr * Math.cos(a), cy + dr * Math.sin(a), 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            _drawSpecular(cx, cy, r);
+
+            // Eight-pointed star decoration (replaces ？ text for reliable centering)
+            const so = r * 0.40, si = r * 0.17;
+            ctx.beginPath();
+            for (let i = 0; i < 16; i++) {
+                const a = (i * Math.PI) / 8 - Math.PI / 2;
+                const sr = i % 2 === 0 ? so : si;
+                i === 0
+                    ? ctx.moveTo(cx + sr * Math.cos(a), cy + sr * Math.sin(a))
+                    : ctx.lineTo(cx + sr * Math.cos(a), cy + sr * Math.sin(a));
+            }
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(240,195,55,0.32)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(235,188,52,0.85)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // Center dot
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.09, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,220,78,0.95)';
+            ctx.fill();
+        }
+
+        function drawPieceFrontCanvas(cx, cy, r, piece) {
+            const isRed = piece.camp === 'red';
+            _drawSoftShadow(cx, cy, r);
+
+            const grad = ctx.createRadialGradient(cx - r * 0.30, cy - r * 0.30, r * 0.05, cx + r * 0.20, cy + r * 0.25, r * 1.05);
+            if (isRed) {
+                grad.addColorStop(0, '#e05050');
+                grad.addColorStop(0.52, '#9e1520');
+                grad.addColorStop(1, '#4c0008');
+            } else {
+                grad.addColorStop(0, '#525265');
+                grad.addColorStop(0.52, '#1c1c2a');
+                grad.addColorStop(1, '#04040a');
+            }
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = isRed ? '#280004' : '#000006';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Outer decorative ring
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.84, 0, Math.PI * 2);
+            ctx.strokeStyle = isRed ? 'rgba(255,215,120,0.55)' : 'rgba(200,200,225,0.45)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Inner decorative ring
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.65, 0, Math.PI * 2);
+            ctx.strokeStyle = isRed ? 'rgba(255,200,100,0.28)' : 'rgba(190,190,215,0.28)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            _drawSpecular(cx, cy, r);
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.75)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            ctx.fillStyle = isRed ? '#ffe880' : '#e8e8f8';
+            ctx.font = `bold ${Math.round(r * 0.72)}px "SimHei", "Microsoft YaHei", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(piece.name, cx, cy + 2);
+            ctx.restore();
+        }
+
+        function drawMonkeyCanvas(cx, cy, r, monkey) {
+            const isRed = monkey.camp === 'red';
+            _drawSoftShadow(cx, cy, r);
+
+            // Warm brown body
+            const grad = ctx.createRadialGradient(cx - r * 0.30, cy - r * 0.30, r * 0.05, cx + r * 0.20, cy + r * 0.25, r * 1.05);
+            grad.addColorStop(0, '#9e7054');
+            grad.addColorStop(0.52, '#58311e');
+            grad.addColorStop(1, '#271208');
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = '#160903';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Dashed amber ring (monkey identifier)
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.84, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ffb300';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([6, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            _drawSpecular(cx, cy, r);
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.75)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            ctx.fillStyle = isRed ? '#ff9050' : '#e0d0c0';
             ctx.font = `bold ${Math.round(r * 0.72)}px "SimHei", "Microsoft YaHei", sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(monkey.name, cx, cy + 2);
+            ctx.restore();
         }
 
         function drawPieceAt(cx, cy, r, piece, revealed, monkey) {

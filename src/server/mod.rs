@@ -83,10 +83,33 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         };
 
         let response = process_message(client_msg, &state, &mut session_idx).await;
+
+        // Send all messages immediately; but if AiThinking appears, buffer
+        // everything after it and deliver with a delay so the AI feels deliberate.
+        let mut delayed: Vec<ServerMessage> = Vec::new();
+        let mut delay_pending = false;
         for msg in response {
+            if delay_pending {
+                delayed.push(msg);
+                continue;
+            }
+            let is_thinking = matches!(msg, ServerMessage::AiThinking);
             let text = serde_json::to_string(&msg).unwrap();
             if sender.send(Message::Text(text.into())).await.is_err() {
                 return;
+            }
+            if is_thinking {
+                delay_pending = true;
+            }
+        }
+
+        if !delayed.is_empty() {
+            tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+            for msg in delayed {
+                let text = serde_json::to_string(&msg).unwrap();
+                if sender.send(Message::Text(text.into())).await.is_err() {
+                    return;
+                }
             }
         }
     }
