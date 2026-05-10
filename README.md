@@ -46,6 +46,27 @@ cargo run
 PORT=8080 cargo run   # 自定义端口
 ```
 
+启用 ONNX 神经网络 AI：
+```bash
+ZODIAC_AI_BACKEND=neural cargo run
+```
+
+若模型不在默认位置 `models/zooformer.onnx`，可显式指定：
+```bash
+ZODIAC_AI_BACKEND=neural \
+ZODIAC_ONNX_MODEL=/abs/path/to/zooformer.onnx \
+cargo run
+```
+
+导出 ONNX 模型：
+```bash
+python tools/export_zooformer_onnx.py \
+  --checkpoint ../Python-old/checkpoints/zooformer.pt \
+  --output models/zooformer.onnx
+```
+
+说明：导出脚本默认使用 ONNX opset `18`，这是当前 PyTorch 导出 ZooFormer 时更稳定的目标版本。若强制使用 `17`，PyTorch/ONNX 可能会在包含 `ScatterElements` 的图上降版本失败。
+
 ## 运行测试
 
 ```bash

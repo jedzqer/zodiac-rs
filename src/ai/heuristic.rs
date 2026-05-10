@@ -2,22 +2,9 @@ use std::collections::HashMap;
 
 use rand::Rng;
 
+use crate::ai::{Action, ActionType};
 use crate::game::board::Board;
 use crate::game::piece::{Camp, Piece};
-
-#[derive(Debug, Clone)]
-pub struct Action {
-    pub action_type: ActionType,
-    pub self_pos: (usize, usize),
-    pub target_pos: Option<(usize, usize)>,
-    pub score: f64,
-}
-
-#[derive(Debug, Clone)]
-pub enum ActionType {
-    Flip,
-    Move,
-}
 
 pub struct AIPlayer {
     pub camp: Camp,
@@ -61,7 +48,10 @@ impl AIPlayer {
             return None;
         }
 
-        let best_score = actions.iter().map(|a| a.score).fold(f64::NEG_INFINITY, f64::max);
+        let best_score = actions
+            .iter()
+            .map(|a| a.score)
+            .fold(f32::NEG_INFINITY, f32::max);
         let best_actions: Vec<_> = actions.into_iter().filter(|a| a.score == best_score).collect();
         let idx = rng.random_range(0..best_actions.len());
         Some(best_actions.into_iter().nth(idx).unwrap())
@@ -103,7 +93,7 @@ impl AIPlayer {
                             action_type: ActionType::Move,
                             self_pos: (sx, sy),
                             target_pos: Some((tx, ty)),
-                            score,
+                            score: score as f32,
                         });
                     }
                 }
@@ -140,7 +130,7 @@ impl AIPlayer {
                     action_type: ActionType::Flip,
                     self_pos: (x, y),
                     target_pos: None,
-                    score,
+                            score: score as f32,
                 });
             }
         }

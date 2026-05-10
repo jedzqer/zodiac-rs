@@ -17,7 +17,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 use tracing::info;
 
-use crate::ai::AIPlayer;
+use crate::ai::{AIPlayer, Action, ActionType};
 use crate::game::GameState;
 use crate::game::piece::Camp;
 use crate::protocol::{ClientMessage, GameMode, ServerMessage};
@@ -178,6 +178,21 @@ async fn process_message(
             }
 
             g.state.board.cells[x][y].revealed = true;
+            if let Some(ai) = &mut g.ai_player {
+                let board_after = g.state.board.clone();
+                ai.record_action(
+                    &g.state.board,
+                    &board_after,
+                    &Action {
+                        action_type: ActionType::Flip,
+                        self_pos: (x, y),
+                        target_pos: None,
+                        score: 0.0,
+                    },
+                    Camp::Black,
+                    true,
+                );
+            }
             g.state.toggle_player();
             g.state.move_count += 1;
             g.state.check_winner();
@@ -219,6 +234,7 @@ async fn process_message(
                 return responses;
             }
 
+            let board_before = g.state.board.clone();
             let (ok, _) = g.state.board.dispose_piece(
                 (from_x, from_y),
                 Some((to_x, to_y)),
@@ -226,6 +242,21 @@ async fn process_message(
             );
 
             if ok {
+                if let Some(ai) = &mut g.ai_player {
+                    let board_after = g.state.board.clone();
+                    ai.record_action(
+                        &board_before,
+                        &board_after,
+                        &Action {
+                            action_type: ActionType::Move,
+                            self_pos: (from_x, from_y),
+                            target_pos: Some((to_x, to_y)),
+                            score: 0.0,
+                        },
+                        Camp::Black,
+                        true,
+                    );
+                }
                 g.state.toggle_player();
                 g.state.move_count += 1;
                 g.state.check_winner();
@@ -263,20 +294,22 @@ async fn process_message(
 fn process_ai_turn(g: &mut GameSession) -> Vec<ServerMessage> {
     let mut responses = Vec::new();
 
-    if let Some(ai) = &g.ai_player {
+    if let Some(ai) = &mut g.ai_player {
+        let board_before = g.state.board.clone();
         let action = ai.choose_action(&g.state.board);
         if let Some(action) = action {
-            let (description, action_type, from_x, from_y, to_x, to_y) = match action.action_type {
-                crate::ai::heuristic::ActionType::Flip => {
+            let (description, action_type, from_x, from_y, to_x, to_y, executed) = match action.action_type {
+                ActionType::Flip => {
                     let (x, y) = action.self_pos;
                     g.state.board.cells[x][y].revealed = true;
                     (
                         format!("AI 翻开了 ({}, {}) 的棋子", x, y),
                         "flip".to_string(),
                         x, y, None, None,
+                        true,
                     )
                 }
-                crate::ai::heuristic::ActionType::Move => {
+                ActionType::Move => {
                     let tp = action.target_pos.unwrap();
                     let (ok, _) = g.state.board.dispose_piece(
                         action.self_pos,
@@ -288,9 +321,12 @@ fn process_ai_turn(g: &mut GameSession) -> Vec<ServerMessage> {
                     } else {
                         "AI 动作执行失败".to_string()
                     };
-                    (desc, "move".to_string(), action.self_pos.0, action.self_pos.1, Some(tp.0), Some(tp.1))
+                    (desc, "move".to_string(), action.self_pos.0, action.self_pos.1, Some(tp.0), Some(tp.1), ok)
                 }
             };
+
+            let board_after = g.state.board.clone();
+            ai.record_action(&board_before, &board_after, &action, Camp::Red, executed);
 
             g.state.toggle_player();
             g.state.move_count += 1;

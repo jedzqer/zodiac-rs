@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::piece::{Camp, MoveResult, Piece, create_all_pieces};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Cell {
     pub has_piece: bool,
     pub piece: Option<Piece>,
@@ -22,7 +22,7 @@ impl Cell {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Board {
     pub cells: [[Cell; 4]; 6],
 }
@@ -190,7 +190,8 @@ impl Board {
     }
 
     fn handle_sheep(&mut self, self_pos: (usize, usize), target_pos: (usize, usize)) {
-        self.cells[self_pos.0][self_pos.1] = self.cells[target_pos.0][target_pos.1].clone();
+        let pulled = self.cells[target_pos.0][target_pos.1].clone();
+        self.cells[self_pos.0][self_pos.1] = pulled;
         self.cells[target_pos.0][target_pos.1] = Cell::empty();
     }
 
@@ -476,6 +477,38 @@ mod tests {
 
         let result = board.get_move_result((2, 2), (2, 2));
         assert_eq!(result, Some(MoveResult::Chicken));
+    }
+
+    #[test]
+    fn test_sheep_can_pull_stronger_enemy_within_two_cells() {
+        let mut board = Board { cells: std::array::from_fn(|_| std::array::from_fn(|_| Cell::empty())) };
+        let sheep = Piece { name: "羊".to_string(), lv: 8, camp: Camp::Red };
+        let tiger = Piece { name: "虎".to_string(), lv: 3, camp: Camp::Black };
+        board.cells[2][2] = make_cell(Some(sheep), true);
+        board.cells[2][0] = make_cell(Some(tiger.clone()), true);
+
+        let result = board.get_move_result((2, 2), (2, 0));
+        assert_eq!(result, Some(MoveResult::Sheep));
+
+        let (ok, executed) = board.dispose_piece((2, 2), Some((2, 0)), Camp::Red);
+        assert!(ok);
+        assert_eq!(executed, Some(MoveResult::Sheep));
+        assert_eq!(board.cells[2][2].piece, Some(tiger));
+        assert!(board.cells[2][2].revealed);
+        assert!(!board.cells[2][2].has_piece || board.cells[2][2].piece.is_some());
+        assert_eq!(board.cells[2][0], Cell::empty());
+    }
+
+    #[test]
+    fn test_sheep_cannot_pull_weaker_enemy() {
+        let mut board = Board { cells: std::array::from_fn(|_| std::array::from_fn(|_| Cell::empty())) };
+        let sheep = Piece { name: "羊".to_string(), lv: 8, camp: Camp::Red };
+        let pig = Piece { name: "猪".to_string(), lv: 12, camp: Camp::Black };
+        board.cells[2][2] = make_cell(Some(sheep), true);
+        board.cells[2][0] = make_cell(Some(pig), true);
+
+        let result = board.get_move_result((2, 2), (2, 0));
+        assert_eq!(result, None);
     }
 
     #[test]
