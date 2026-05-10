@@ -88,15 +88,43 @@
             top: 10px;
             left: 84.5%;
             width: 230px;
-            padding: 15px;
-            background-color: rgba(20, 8, 0, 0.88);
-            border: 1px solid #8B5E30;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 1.9;
             display: none;
+            flex-direction: column;
+            gap: 12px;
+            font-size: 14px;
             z-index: 5;
             color: #e8d0a0;
+        }
+
+        .info-card {
+            padding: 14px 15px;
+            background: linear-gradient(180deg, rgba(35, 16, 4, 0.94) 0%, rgba(16, 6, 0, 0.9) 100%);
+            border: 1px solid #8B5E30;
+            border-radius: 10px;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 220, 140, 0.08);
+        }
+
+        .info-card-title {
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(200, 144, 60, 0.35);
+            color: #f5c842;
+            font-size: 12px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 10px;
+            line-height: 1.9;
+        }
+
+        .info-value {
+            color: #f7e4bc;
+            text-align: right;
         }
 
         #info-panel .label {
@@ -104,8 +132,38 @@
             color: #f5c842;
         }
 
-        #info-panel hr {
-            border-color: #5c3317;
+        #info-selected-empty {
+            color: #a88c68;
+            line-height: 1.7;
+        }
+
+        #info-selected-content {
+            display: none;
+        }
+
+        #info-piece-name {
+            margin-bottom: 8px;
+            color: #fff1c7;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 0.08em;
+        }
+
+        #info-level-section,
+        #info-skill-section {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(92, 51, 23, 0.9);
+        }
+
+        #info-message {
+            margin-top: 10px;
+            padding: 8px 10px;
+            background-color: rgba(255, 215, 120, 0.08);
+            border: 1px solid rgba(200, 144, 60, 0.22);
+            border-radius: 6px;
+            color: #d8c29c;
+            line-height: 1.6;
         }
 
         #status-bar {
@@ -163,18 +221,30 @@
         </div>
 
         <div id="info-panel">
-            <div><span class="label">当前回合：</span><span id="info-player">-</span></div>
-            <div><span class="label">模式：</span><span id="info-mode">-</span></div>
-            <div><span class="label">回合数：</span><span id="info-moves">0</span></div>
-            <div><span class="label">红方棋子：</span><span id="info-red">12</span></div>
-            <div><span class="label">黑方棋子：</span><span id="info-black">12</span></div>
-            <hr style="margin: 8px 0;">
-            <div id="info-skill-section" style="display:none">
-                <div><span class="label">技能：</span></div>
-                <div id="info-skill" style="color:#b8d0a0; font-size:12px; line-height:1.6; margin-top:2px;"></div>
-                <hr style="margin: 8px 0;">
+            <div class="info-card">
+                <div class="info-card-title">对局信息</div>
+                <div class="info-row"><span class="label">当前回合</span><span class="info-value" id="info-player">-</span></div>
+                <div class="info-row"><span class="label">模式</span><span class="info-value" id="info-mode">-</span></div>
+                <div class="info-row"><span class="label">回合数</span><span class="info-value" id="info-moves">0</span></div>
+                <div class="info-row"><span class="label">红方棋子</span><span class="info-value" id="info-red">12</span></div>
+                <div class="info-row"><span class="label">黑方棋子</span><span class="info-value" id="info-black">12</span></div>
             </div>
-            <div id="info-message">请点击一个棋子</div>
+
+            <div class="info-card">
+                <div class="info-card-title">当前棋子</div>
+                <div id="info-selected-empty">请点击一个己方已翻开的棋子查看信息</div>
+                <div id="info-selected-content">
+                    <div id="info-piece-name">-</div>
+                    <div id="info-level-section" style="display:none">
+                        <div class="info-row"><span class="label">等级</span><span class="info-value" id="info-level"></span></div>
+                    </div>
+                    <div id="info-skill-section" style="display:none">
+                        <div><span class="label">技能</span></div>
+                        <div id="info-skill" style="color:#b8d0a0; font-size:12px; line-height:1.6; margin-top:4px;"></div>
+                    </div>
+                </div>
+                <div id="info-message">请点击一个棋子</div>
+            </div>
         </div>
 
         <div id="status-bar"></div>
@@ -544,6 +614,7 @@
                     pendingPlayerAction = null;
                     pendingAiAction = null;
                     inputLocked = false;
+                    updateSelectedPieceInfo(null);
                     document.getElementById('menu-overlay').style.display = 'none';
                     document.getElementById('info-panel').style.display = 'block';
                     document.getElementById('status-bar').style.display = 'block';
@@ -606,6 +677,7 @@
                     gameState.current_player = msg.data.current_player;
                     gameState.move_count = msg.data.move_count;
                     selectedPos = null;
+                    updateSelectedPieceInfo(null);
                     if (msg.data.message) {
                         document.getElementById('info-message').textContent = msg.data.message;
                     }
@@ -692,6 +764,44 @@
             }
             document.getElementById('info-red').textContent = redCount;
             document.getElementById('info-black').textContent = blackCount;
+        }
+
+        function updateSelectedPieceInfo(cell) {
+            const emptyState = document.getElementById('info-selected-empty');
+            const content = document.getElementById('info-selected-content');
+            const pieceName = document.getElementById('info-piece-name');
+            const levelSection = document.getElementById('info-level-section');
+            const levelText = document.getElementById('info-level');
+            const skillSection = document.getElementById('info-skill-section');
+            const skillText = document.getElementById('info-skill');
+
+            if (!cell) {
+                pieceName.textContent = '';
+                levelText.textContent = '';
+                skillText.textContent = '';
+                emptyState.style.display = 'block';
+                content.style.display = 'none';
+                levelSection.style.display = 'none';
+                skillSection.style.display = 'none';
+                return;
+            }
+
+            const piece = cell.monkey || cell.piece;
+            const skill = PIECE_SKILLS[piece?.name] || '';
+            pieceName.textContent = piece?.name || '';
+            emptyState.style.display = 'none';
+            content.style.display = 'block';
+
+            if (piece?.lv != null) {
+                levelText.textContent = String(piece.lv);
+                levelSection.style.display = '';
+            } else {
+                levelText.textContent = '';
+                levelSection.style.display = 'none';
+            }
+
+            skillText.textContent = skill;
+            skillSection.style.display = skill ? '' : 'none';
         }
 
         function gridToPixel(x, y) {
@@ -906,9 +1016,7 @@
                     const pieceName = cell.monkey ? cell.monkey.name : cell.piece.name;
                     selectedPos = [x, y];
                     document.getElementById('info-message').textContent = `已选中 ${pieceName}`;
-                    const skill = PIECE_SKILLS[pieceName] || '';
-                    document.getElementById('info-skill').textContent = skill;
-                    document.getElementById('info-skill-section').style.display = skill ? '' : 'none';
+                    updateSelectedPieceInfo(cell);
                     render();
                 }
             } else {
@@ -924,7 +1032,7 @@
             e.preventDefault();
             selectedPos = null;
             document.getElementById('info-message').textContent = '请点击一个棋子';
-            document.getElementById('info-skill-section').style.display = 'none';
+            updateSelectedPieceInfo(null);
             render();
         });
 
