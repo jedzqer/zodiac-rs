@@ -383,7 +383,7 @@ impl Piece {
         if dx + dy < 3 {
             if let Some(lv) = target_info.0 {
                 let tc = target_camp?;
-                if lv < self.lv && self.camp != tc {
+                if target_info.1 && lv < self.lv && self.camp != tc {
                     return Some(MoveResult::Sheep);
                 }
             }

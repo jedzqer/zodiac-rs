@@ -299,7 +299,7 @@ impl Board {
         let piece_camp = self.cells[self_pos.0][self_pos.1].piece.as_ref().map(|p| p.camp);
 
         if !has_piece {
-            return (true, None);
+            return (false, None);
         }
 
         if !revealed && !has_monkey {
@@ -311,12 +311,12 @@ impl Board {
             let monkey_camp = self.cells[self_pos.0][self_pos.1].monkey.as_ref().map(|m| m.camp);
             if let Some(camp) = monkey_camp {
                 if gamer_camp != camp {
-                    return (true, None);
+                    return (false, None);
                 }
             }
         } else if let Some(camp) = piece_camp {
             if gamer_camp != camp {
-                return (true, None);
+                return (false, None);
             }
         }
 
@@ -397,7 +397,15 @@ mod tests {
         let piece_camp = board.cells[0][0].piece.as_ref().unwrap().camp;
         let wrong_camp = piece_camp.opponent();
         let (ok, result) = board.dispose_piece((0, 0), Some((1, 0)), wrong_camp);
-        assert!(ok);
+        assert!(!ok);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_dispose_piece_empty_cell_is_invalid() {
+        let mut board = Board { cells: std::array::from_fn(|_| std::array::from_fn(|_| Cell::empty())) };
+        let (ok, result) = board.dispose_piece((0, 0), Some((1, 0)), Camp::Black);
+        assert!(!ok);
         assert!(result.is_none());
     }
 
@@ -506,6 +514,18 @@ mod tests {
         let pig = Piece { name: "猪".to_string(), lv: 12, camp: Camp::Black };
         board.cells[2][2] = make_cell(Some(sheep), true);
         board.cells[2][0] = make_cell(Some(pig), true);
+
+        let result = board.get_move_result((2, 2), (2, 0));
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_sheep_cannot_pull_hidden_enemy() {
+        let mut board = Board { cells: std::array::from_fn(|_| std::array::from_fn(|_| Cell::empty())) };
+        let sheep = Piece { name: "羊".to_string(), lv: 8, camp: Camp::Red };
+        let tiger = Piece { name: "虎".to_string(), lv: 3, camp: Camp::Black };
+        board.cells[2][2] = make_cell(Some(sheep), true);
+        board.cells[2][0] = make_cell(Some(tiger), false);
 
         let result = board.get_move_result((2, 2), (2, 0));
         assert_eq!(result, None);
