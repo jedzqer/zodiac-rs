@@ -16,10 +16,6 @@ pub fn index_to_pos(index: usize) -> (usize, usize) {
     (index / BOARD_HEIGHT, index % BOARD_HEIGHT)
 }
 
-pub fn encode_flip_action(pos: (usize, usize)) -> usize {
-    pos_to_index(pos)
-}
-
 pub fn encode_move_action(src_pos: (usize, usize), dst_pos: (usize, usize)) -> usize {
     MOVE_OFFSET + pos_to_index(src_pos) * NUM_CELLS + pos_to_index(dst_pos)
 }

@@ -22,6 +22,11 @@ use crate::game::GameState;
 use crate::game::piece::Camp;
 use crate::protocol::{ClientMessage, GameMode, ServerMessage};
 
+struct MessageOutcome {
+    immediate: Vec<ServerMessage>,
+    trigger_ai_turn: bool,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub games: Arc<Mutex<Vec<GameSession>>>,
@@ -82,30 +87,22 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             }
         };
 
-        let response = process_message(client_msg, &state, &mut session_idx).await;
+        let outcome = process_message(client_msg, &state, &mut session_idx).await;
 
-        // Send all messages immediately; but if AiThinking appears, buffer
-        // everything after it and deliver with a delay so the AI feels deliberate.
-        let mut delayed: Vec<ServerMessage> = Vec::new();
-        let mut delay_pending = false;
-        for msg in response {
-            if delay_pending {
-                delayed.push(msg);
-                continue;
-            }
+        for msg in outcome.immediate {
             let is_thinking = matches!(msg, ServerMessage::AiThinking);
             let text = serde_json::to_string(&msg).unwrap();
             if sender.send(Message::Text(text.into())).await.is_err() {
                 return;
             }
             if is_thinking {
-                delay_pending = true;
+                continue;
             }
         }
 
-        if !delayed.is_empty() {
-            tokio::time::sleep(tokio::time::Duration::from_millis(750)).await;
-            for msg in delayed {
+        if outcome.trigger_ai_turn {
+            let ai_messages = process_ai_turn_for_session(&state, session_idx).await;
+            for msg in ai_messages {
                 let text = serde_json::to_string(&msg).unwrap();
                 if sender.send(Message::Text(text.into())).await.is_err() {
                     return;
@@ -119,9 +116,10 @@ async fn process_message(
     msg: ClientMessage,
     state: &AppState,
     session_idx: &mut Option<usize>,
-) -> Vec<ServerMessage> {
+) -> MessageOutcome {
     let mut games = state.games.lock().await;
     let mut responses = Vec::new();
+    let mut trigger_ai_turn = false;
 
     match msg {
         ClientMessage::NewGame { mode } => {
@@ -160,13 +158,28 @@ async fn process_message(
                     responses.push(ServerMessage::Error {
                         message: "No active game".into(),
                     });
-                    return responses;
+                    return MessageOutcome {
+                        immediate: responses,
+                        trigger_ai_turn,
+                    };
                 }
             };
 
             let g = &mut games[idx];
             if g.state.game_over {
-                return responses;
+                return MessageOutcome {
+                    immediate: responses,
+                    trigger_ai_turn,
+                };
+            }
+            if matches!(g.mode, GameMode::Pve) && g.state.current_player != Camp::Black {
+                responses.push(ServerMessage::Error {
+                    message: "Wait for AI turn to finish".into(),
+                });
+                return MessageOutcome {
+                    immediate: responses,
+                    trigger_ai_turn,
+                };
             }
 
             let cell = &g.state.board.cells[x][y];
@@ -174,7 +187,10 @@ async fn process_message(
                 responses.push(ServerMessage::Error {
                     message: "Cannot flip this cell".into(),
                 });
-                return responses;
+                return MessageOutcome {
+                    immediate: responses,
+                    trigger_ai_turn,
+                };
             }
 
             g.state.board.cells[x][y].revealed = true;
@@ -212,8 +228,7 @@ async fn process_message(
 
                 if matches!(g.mode, GameMode::Pve) && g.state.current_player == Camp::Red {
                     responses.push(ServerMessage::AiThinking);
-                    let ai_result = process_ai_turn(g);
-                    responses.extend(ai_result);
+                    trigger_ai_turn = true;
                 }
             }
         }
@@ -225,13 +240,28 @@ async fn process_message(
                     responses.push(ServerMessage::Error {
                         message: "No active game".into(),
                     });
-                    return responses;
+                    return MessageOutcome {
+                        immediate: responses,
+                        trigger_ai_turn,
+                    };
                 }
             };
 
             let g = &mut games[idx];
             if g.state.game_over {
-                return responses;
+                return MessageOutcome {
+                    immediate: responses,
+                    trigger_ai_turn,
+                };
+            }
+            if matches!(g.mode, GameMode::Pve) && g.state.current_player != Camp::Black {
+                responses.push(ServerMessage::Error {
+                    message: "Wait for AI turn to finish".into(),
+                });
+                return MessageOutcome {
+                    immediate: responses,
+                    trigger_ai_turn,
+                };
             }
 
             let board_before = g.state.board.clone();
@@ -276,8 +306,7 @@ async fn process_message(
 
                     if matches!(g.mode, GameMode::Pve) && g.state.current_player == Camp::Red {
                         responses.push(ServerMessage::AiThinking);
-                        let ai_result = process_ai_turn(g);
-                        responses.extend(ai_result);
+                        trigger_ai_turn = true;
                     }
                 }
             } else {
@@ -288,7 +317,30 @@ async fn process_message(
         }
     }
 
-    responses
+    MessageOutcome {
+        immediate: responses,
+        trigger_ai_turn,
+    }
+}
+
+async fn process_ai_turn_for_session(
+    state: &AppState,
+    session_idx: Option<usize>,
+) -> Vec<ServerMessage> {
+    let Some(idx) = session_idx else {
+        return Vec::new();
+    };
+
+    let mut games = state.games.lock().await;
+    let Some(g) = games.get_mut(idx) else {
+        return Vec::new();
+    };
+
+    if g.state.game_over || !matches!(g.mode, GameMode::Pve) || g.state.current_player != Camp::Red {
+        return Vec::new();
+    }
+
+    process_ai_turn(g)
 }
 
 fn process_ai_turn(g: &mut GameSession) -> Vec<ServerMessage> {

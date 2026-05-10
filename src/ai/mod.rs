@@ -69,13 +69,6 @@ impl AIPlayer {
         }
     }
 
-    pub fn backend_kind(&self) -> BackendKind {
-        match self {
-            Self::Heuristic(_) => BackendKind::Heuristic,
-            Self::Neural(_) => BackendKind::Neural,
-        }
-    }
-
     pub fn choose_action(&mut self, board: &Board) -> Option<Action> {
         match self {
             Self::Heuristic(ai) => ai.choose_action(board),

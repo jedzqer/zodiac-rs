@@ -223,7 +223,9 @@
         let moveAnimation = null;
         let vanishAnimations = [];
         let flipAnimations = [];
-        let pendingAction = null;
+        let pendingPlayerAction = null;
+        let pendingAiAction = null;
+        let inputLocked = false;
         const MOVE_DURATION = 320;
         const VANISH_DURATION = 420;
         const FLIP_DURATION = 400;
@@ -539,6 +541,9 @@
                     gameState = msg.data;
                     gameMode = msg.data.mode;
                     selectedPos = null;
+                    pendingPlayerAction = null;
+                    pendingAiAction = null;
+                    inputLocked = false;
                     document.getElementById('menu-overlay').style.display = 'none';
                     document.getElementById('info-panel').style.display = 'block';
                     document.getElementById('status-bar').style.display = 'block';
@@ -551,16 +556,17 @@
                     const oldBoard = gameState.board;
                     const newBoard = msg.data.board;
 
-                    if (pendingAction) {
-                        if (pendingAction.type === 'flip') {
-                            const { x, y } = pendingAction;
+                    const actionForAnimation = pendingAiAction || pendingPlayerAction;
+                    if (actionForAnimation) {
+                        if (actionForAnimation.type === 'flip') {
+                            const { x, y } = actionForAnimation;
                             flipAnimations.push({
                                 x, y,
                                 piece: newBoard.cells[x][y].piece,
                                 startTime: Date.now()
                             });
-                        } else if (pendingAction.type === 'move') {
-                            const { from_x, from_y, to_x, to_y } = pendingAction;
+                        } else if (actionForAnimation.type === 'move') {
+                            const { from_x, from_y, to_x, to_y } = actionForAnimation;
                             const oldSrc = oldBoard.cells[from_x][from_y];
                             const oldDst = oldBoard.cells[to_x][to_y];
                             const newSrc = newBoard.cells[from_x][from_y];
@@ -587,7 +593,13 @@
                                 vanishAnimations.push({ x: to_x, y: to_y, piece: oldDst.piece, monkey: oldDst.monkey, startTime: Date.now() });
                             }
                         }
-                        pendingAction = null;
+                        if (pendingAiAction) {
+                            pendingAiAction = null;
+                            inputLocked = false;
+                        } else {
+                            pendingPlayerAction = null;
+                            inputLocked = false;
+                        }
                     }
 
                     gameState.board = newBoard;
@@ -611,6 +623,7 @@
                     break;
 
                 case 'ai_thinking':
+                    inputLocked = true;
                     document.getElementById('status-bar').textContent = 'AI 思考中...';
                     break;
 
@@ -618,14 +631,17 @@
                     document.getElementById('status-bar').textContent = '';
                     document.getElementById('info-message').textContent = msg.data.description;
                     if (msg.data.action_type === 'flip') {
-                        pendingAction = { type: 'flip', x: msg.data.from_x, y: msg.data.from_y };
+                        pendingAiAction = { type: 'flip', x: msg.data.from_x, y: msg.data.from_y };
                     } else if (msg.data.action_type === 'move') {
-                        pendingAction = { type: 'move', from_x: msg.data.from_x, from_y: msg.data.from_y, to_x: msg.data.to_x, to_y: msg.data.to_y };
+                        pendingAiAction = { type: 'move', from_x: msg.data.from_x, from_y: msg.data.from_y, to_x: msg.data.to_x, to_y: msg.data.to_y };
+                    } else {
+                        inputLocked = false;
                     }
                     break;
 
                 case 'error':
-                    pendingAction = null;
+                    pendingPlayerAction = null;
+                    inputLocked = false;
                     console.warn('Server error:', msg.data.message);
                     break;
             }
@@ -870,6 +886,7 @@
         canvas.addEventListener('click', (e) => {
             if (!gameState || !ws || ws.readyState !== WebSocket.OPEN) return;
             if (moveAnimation || vanishAnimations.length > 0 || flipAnimations.length > 0) return;
+            if (inputLocked || pendingPlayerAction || pendingAiAction) return;
 
             if (gameMode === 'pve' && gameState.current_player === 'red') return;
 
@@ -881,7 +898,8 @@
 
             if (!selectedPos) {
                 if (cell.has_piece && !cell.revealed && !cell.monkey) {
-                    pendingAction = { type: 'flip', x, y };
+                    pendingPlayerAction = { type: 'flip', x, y };
+                    inputLocked = true;
                     ws.send(JSON.stringify({ type: 'flip', data: { x, y } }));
                 } else if ((cell.piece && cell.revealed && cell.piece.camp === gameState.current_player) ||
                            (cell.monkey && cell.monkey.camp === gameState.current_player)) {
@@ -895,7 +913,8 @@
                 }
             } else {
                 const [sx, sy] = selectedPos;
-                pendingAction = { type: 'move', from_x: sx, from_y: sy, to_x: x, to_y: y };
+                pendingPlayerAction = { type: 'move', from_x: sx, from_y: sy, to_x: x, to_y: y };
+                inputLocked = true;
                 ws.send(JSON.stringify({ type: 'move', data: { from_x: sx, from_y: sy, to_x: x, to_y: y } }));
                 selectedPos = null;
             }

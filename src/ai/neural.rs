@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use ndarray::{Array2, Array3, Axis};
 use ort::{
@@ -23,7 +23,6 @@ pub struct NeuralAIPlayer {
     session: Session,
     encoder: StateEncoder,
     history: Vec<HistoryEntry>,
-    model_path: PathBuf,
 }
 
 impl NeuralAIPlayer {
@@ -44,7 +43,6 @@ impl NeuralAIPlayer {
             session,
             encoder: StateEncoder::new(HISTORY_LEN),
             history: Vec::new(),
-            model_path,
         })
     }
 
@@ -98,10 +96,6 @@ impl NeuralAIPlayer {
             let drain = self.history.len() - HISTORY_LEN;
             self.history.drain(0..drain);
         }
-    }
-
-    pub fn model_path(&self) -> &Path {
-        &self.model_path
     }
 }
 

@@ -21,9 +21,7 @@ pub enum HistoryResult {
     Ok,
     Invalid,
     Eat,
-    Pong,
     Special,
-    Unknown,
 }
 
 pub struct EncodedState {
@@ -190,9 +188,7 @@ impl HistoryResult {
             Self::Ok => 0,
             Self::Invalid => 1,
             Self::Eat => 2,
-            Self::Pong => 3,
-            Self::Special => 4,
-            Self::Unknown => 5,
+            Self::Special => 3,
         }
     }
 }
