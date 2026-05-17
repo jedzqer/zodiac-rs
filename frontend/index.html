@@ -207,6 +207,196 @@
             font-size: 1.2rem;
             color: #c8906a;
         }
+
+        #handbook-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(35,16,4,0.95) 0%, rgba(16,6,0,0.92) 100%);
+            border: 2px solid #8B5E30;
+            color: #f5c842;
+            font-size: 18px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 6;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            font-family: inherit;
+        }
+
+        #handbook-btn:hover {
+            border-color: #f5c842;
+            box-shadow: 0 0 16px rgba(245,200,66,0.35), 0 4px 12px rgba(0,0,0,0.4);
+            transform: translateY(-1px);
+        }
+
+        #handbook-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.72);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+        }
+
+        #handbook-modal.open {
+            display: flex;
+        }
+
+        .handbook-box {
+            width: 680px;
+            max-height: 82%;
+            background: linear-gradient(180deg, #1e0d02 0%, #120800 100%);
+            border: 1px solid #8B5E30;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,220,140,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .handbook-header {
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid rgba(200,144,60,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .handbook-header h2 {
+            color: #f5c842;
+            font-size: 1.1rem;
+            letter-spacing: 0.2em;
+            margin: 0;
+        }
+
+        .handbook-close {
+            background: none;
+            border: 1px solid rgba(200,144,60,0.4);
+            color: #c8906a;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .handbook-close:hover {
+            border-color: #f5c842;
+            color: #f5c842;
+        }
+
+        .handbook-body {
+            padding: 16px 20px 20px;
+            overflow-y: auto;
+            color: #e8d0a0;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .handbook-body::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .handbook-body::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.04);
+        }
+
+        .handbook-body::-webkit-scrollbar-thumb {
+            background: rgba(200,144,60,0.4);
+            border-radius: 3px;
+        }
+
+        .hb-section {
+            margin-bottom: 16px;
+        }
+
+        .hb-section-title {
+            color: #f5c842;
+            font-size: 12px;
+            letter-spacing: 0.18em;
+            border-bottom: 1px solid rgba(200,144,60,0.3);
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+        }
+
+        .hb-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 16px;
+        }
+
+        .hb-row {
+            display: flex;
+            gap: 6px;
+            align-items: baseline;
+            line-height: 1.8;
+        }
+
+        .hb-label {
+            color: #f5c842;
+            font-weight: bold;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .hb-piece-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .hb-piece-table th {
+            color: #c8906a;
+            font-weight: normal;
+            text-align: left;
+            padding: 3px 8px 3px 0;
+            border-bottom: 1px solid rgba(200,144,60,0.2);
+            letter-spacing: 0.05em;
+        }
+
+        .hb-piece-table td {
+            padding: 4px 8px 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: top;
+            color: #d8c29c;
+        }
+
+        .hb-piece-table td:first-child {
+            color: #fff1c7;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .hb-piece-table td:nth-child(2) {
+            color: #a88c68;
+            font-size: 11px;
+        }
+
+        .hb-tip {
+            background: rgba(245,200,66,0.06);
+            border: 1px solid rgba(200,144,60,0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #b8a080;
+            font-size: 12px;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -248,6 +438,72 @@
         </div>
 
         <div id="status-bar"></div>
+
+        <button id="handbook-btn" onclick="toggleHandbook()" title="游戏手册">?</button>
+
+        <div id="handbook-modal" onclick="closeHandbookOnBg(event)">
+            <div class="handbook-box">
+                <div class="handbook-header">
+                    <h2>游戏手册</h2>
+                    <button class="handbook-close" onclick="toggleHandbook()">✕</button>
+                </div>
+                <div class="handbook-body">
+                    <div class="hb-section">
+                        <div class="hb-section-title">基本信息</div>
+                        <div class="hb-grid">
+                            <div class="hb-row"><span class="hb-label">棋盘</span><span>6×4，共 24 格</span></div>
+                            <div class="hb-row"><span class="hb-label">棋子</span><span>红黑各 12 枚</span></div>
+                            <div class="hb-row"><span class="hb-label">开局</span><span>全部扣置，随机分布</span></div>
+                            <div class="hb-row"><span class="hb-label">先手</span><span>黑方</span></div>
+                        </div>
+                    </div>
+
+                    <div class="hb-section">
+                        <div class="hb-section-title">操作方式</div>
+                        <div class="hb-row"><span class="hb-label">翻子</span><span>点击扣置棋子 → 翻开，立即换手</span></div>
+                        <div class="hb-row"><span class="hb-label">移动</span><span>点击己方已翻棋子选中，再点目标格执行</span></div>
+                        <div class="hb-row"><span class="hb-label">取消</span><span>右键取消当前选中</span></div>
+                    </div>
+
+                    <div class="hb-section">
+                        <div class="hb-section-title">战斗规则</div>
+                        <div class="hb-row"><span class="hb-label">强弱</span><span>等级越小越强（鼠=1 最强，猪=12 最弱）</span></div>
+                        <div class="hb-row"><span class="hb-label">吃子</span><span>低等级可吃高等级的敌方已翻棋子</span></div>
+                        <div class="hb-row"><span class="hb-label">同归</span><span>同等级相遇，双方同时消失</span></div>
+                        <div class="hb-row"><span class="hb-label">胜利</span><span>消灭对方全部棋子</span></div>
+                    </div>
+
+                    <div class="hb-section">
+                        <div class="hb-section-title">十二棋子特技</div>
+                        <table class="hb-piece-table">
+                            <thead>
+                                <tr>
+                                    <th>棋子</th><th>等级</th><th>特技说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>鼠</td><td>1</td><td>可吃除猪(12)外的所有敌方棋子</td></tr>
+                                <tr><td>牛</td><td>2</td><td>可撞翻中间未翻棋子，跨两格直线移动到空位</td></tr>
+                                <tr><td>虎</td><td>3</td><td>可隔一格直线攻击，中间须有棋子</td></tr>
+                                <tr><td>兔</td><td>4</td><td>可直线跳 1 或 2 格，中间有无棋子均可</td></tr>
+                                <tr><td>龙</td><td>5</td><td>可飞到棋盘任意位置</td></tr>
+                                <tr><td>蛇</td><td>6</td><td>可走八方向（含对角线）</td></tr>
+                                <tr><td>马</td><td>7</td><td>可直线走 2 格，但中间须无棋子阻挡</td></tr>
+                                <tr><td>羊</td><td>8</td><td>将 2 格内更强敌子拉至自身位置，羊自身消失</td></tr>
+                                <tr><td>猴</td><td>9</td><td>可爬上未翻棋子占位；猴离开前该棋子无法翻开</td></tr>
+                                <tr><td>鸡</td><td>10</td><td>原地不动时翻开周围 3×3 范围内所有棋子</td></tr>
+                                <tr><td>狗</td><td>11</td><td>将相邻更强的敌方棋子吓退一格（推离自己方向）</td></tr>
+                                <tr><td>猪</td><td>12</td><td>只能吃鼠(1)，遇猪同归于尽</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="hb-tip">
+                        💡 单人模式：你执黑方，AI 执红方。轮到 AI 时棋盘暂时锁定，等待 AI 落子后再操作。
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div id="winner-overlay" onclick="backToMenu()">
             <h2 id="winner-text"></h2>
@@ -619,6 +875,7 @@
                     document.getElementById('info-panel').style.display = 'block';
                     document.getElementById('status-bar').style.display = 'block';
                     document.getElementById('winner-overlay').style.display = 'none';
+                    document.getElementById('handbook-btn').style.display = 'flex';
                     updateInfoPanel();
                     render();
                     break;
@@ -732,10 +989,22 @@
             document.getElementById('menu-overlay').style.display = 'flex';
             document.getElementById('info-panel').style.display = 'none';
             document.getElementById('status-bar').style.display = 'none';
+            document.getElementById('handbook-btn').style.display = 'none';
+            document.getElementById('handbook-modal').classList.remove('open');
             gameState = null;
             selectedPos = null;
             ctx.fillStyle = '#1a0a00';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function toggleHandbook() {
+            document.getElementById('handbook-modal').classList.toggle('open');
+        }
+
+        function closeHandbookOnBg(e) {
+            if (e.target === document.getElementById('handbook-modal')) {
+                document.getElementById('handbook-modal').classList.remove('open');
+            }
         }
 
         function updateInfoPanel() {
