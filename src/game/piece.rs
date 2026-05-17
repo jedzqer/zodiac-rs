@@ -375,7 +375,7 @@ impl Piece {
                     } else if lv == 8 {
                         Some(MoveResult::Pong)
                     } else {
-                        None
+                        Some(MoveResult::Sheep)
                     }
                 }
             };
